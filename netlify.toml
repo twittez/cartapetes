@@ -1,0 +1,29 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Redirecionamentos e Proxies do Netlify
+[[redirects]]
+  from = "/winnerpay-api/*"
+  to = "https://api.winnerpayy.com.br/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/meta-capi"
+  to = "/.netlify/functions/meta-capi"
+  status = 200
+
+[[redirects]]
+  from = "/winnerpay-webhook"
+  to = "/.netlify/functions/winnerpay-webhook"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

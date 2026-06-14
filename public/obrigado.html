@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Obrigado pela sua compra! — CarTapetes</title>
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+  
+  <!-- TikTok Pixel Code Start -->
+  <script>
+  !function (w, d, t) {
+    w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(
+  var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script")
+  ;n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
+
+    ttq.load('D8ACA1RC77U45OQLNKNG');
+    ttq.page();
+    // Track conversion
+    ttq.track('CompletePayment');
+  }(window, document, 'ttq');
+  </script>
+  <!-- TikTok Pixel Code End -->
+
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1932684814101405');
+  fbq('track', 'PageView');
+  </script>
+  <!-- End Meta Pixel Code -->
+
+  <!-- Meta Purchase Event Script (Pixel & CAPI) -->
+  <script>
+    async function sha256(str) {
+      if (!str) return '';
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str.trim().toLowerCase());
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (err) {
+        console.error('Error hashing:', err);
+        return '';
+      }
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
+    }
+
+    async function trackPurchase() {
+      // 1. Recupera dados da compra salvos pelo checkout no localStorage
+      const purchaseDataStr = localStorage.getItem('cartapetes_purchase_data');
+      if (!purchaseDataStr) {
+        console.log('Nenhum dado de compra pendente encontrado no localStorage.');
+        return;
+      }
+
+      try {
+        const data = JSON.parse(purchaseDataStr);
+        const value = parseFloat(data.value) || 0;
+        const currency = data.currency || 'BRL';
+        const eventId = data.eventId || ('evt_' + Math.random().toString(36).substring(2, 15));
+
+        // 2. Prepara os dados de correspondência avançada (hashing SHA-256)
+        const hashedData = {};
+        if (data.email) hashedData.em = await sha256(data.email);
+        
+        if (data.telefone) {
+          const cleanPhone = data.telefone.replace(/\D/g, '');
+          const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+          hashedData.ph = await sha256(phoneWithCountry);
+        }
+
+        if (data.nome) {
+          const nameParts = data.nome.trim().split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          if (firstName) hashedData.fn = await sha256(firstName);
+          if (lastName) hashedData.ln = await sha256(lastName);
+        }
+
+        if (data.cidade) hashedData.ct = await sha256(data.cidade);
+        if (data.estado) hashedData.st = await sha256(data.estado);
+        if (data.cep) hashedData.zp = await sha256(data.cep.replace(/\D/g, ''));
+        hashedData.country = await sha256('br');
+
+        // Cookies do Meta
+        const fbp = getCookie('_fbp');
+        const fbc = getCookie('_fbc');
+        const mergedUserData = {
+          ...hashedData,
+          ...(fbp && { fbp }),
+          ...(fbc && { fbc })
+        };
+
+        const customData = {
+          value: value,
+          currency: currency,
+          content_type: 'product',
+          contents: [{
+            id: data.kit || 'kit_tapete',
+            quantity: 1,
+            item_price: value
+          }]
+        };
+
+        // 3. Atualiza o Pixel com os dados do usuário e envia evento Purchase no navegador
+        if (window.fbq) {
+          console.log('[Meta Pixel] Disparando Purchase...', { value, currency, eventId });
+          // Re-inicializa o Pixel com os dados do cliente para associar à conversão
+          window.fbq('init', '1932684814101405', mergedUserData);
+          window.fbq('track', 'Purchase', customData, { eventID: eventId });
+        }
+
+        // 4. Envia o evento para a API de Conversões (CAPI) do servidor
+        const capiPayload = {
+          event_name: 'Purchase',
+          event_id: eventId,
+          event_source_url: window.location.href,
+          user_data: mergedUserData,
+          custom_data: customData
+        };
+
+        try {
+          console.log('[Meta CAPI Proxy] Enviando Purchase via proxy...');
+          const response = await fetch('/meta-capi', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(capiPayload)
+          });
+
+          if (!response.ok) throw new Error('CAPI proxy error');
+          console.log('[Meta CAPI Proxy] Purchase enviado com sucesso!');
+        } catch (capiErr) {
+          console.warn('[Meta CAPI Proxy] Falha no proxy do obrigado, tentando direto...', capiErr);
+          // Fallback CAPI direto
+          await sendCapiDirectFallback(capiPayload);
+        }
+
+        // 5. Remove os dados para não duplicar se der refresh na página
+        localStorage.removeItem('cartapetes_purchase_data');
+      } catch (err) {
+        console.error('Erro ao processar tracking de Purchase:', err);
+      }
+    }
+
+    async function sendCapiDirectFallback(payload) {
+      const pixelId = '1932684814101405';
+      const token = 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
+      const url = `https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${token}`;
+
+      try {
+        const directPayload = {
+          data: [{
+            event_name: payload.event_name,
+            event_time: Math.floor(Date.now() / 1000),
+            event_id: payload.event_id,
+            event_source_url: payload.event_source_url,
+            action_source: 'website',
+            user_data: {
+              client_user_agent: navigator.userAgent,
+              ...payload.user_data
+            },
+            custom_data: payload.custom_data
+          }]
+        };
+
+        await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(directPayload)
+        });
+        console.log('[Meta CAPI Direct Fallback] Purchase enviado com sucesso!');
+      } catch (error) {
+        console.error('[Meta CAPI Direct Fallback] Erro ao enviar Purchase direto:', error);
+      }
+    }
+
+    // Roda ao carregar a página
+    window.addEventListener('DOMContentLoaded', () => {
+      trackPurchase();
+    });
+  </script>
+  <!-- UTMify Script -->
+  <script>
+    window.pixelId = "6a2d9c4436996dffea597f78";
+    var a = document.createElement("script");
+    a.setAttribute("async", "");
+    a.setAttribute("defer", "");
+    a.setAttribute("src", "https://cdn.utmify.com.br/scripts/pixel/pixel.js");
+    document.head.appendChild(a);
+  </script>
+  <!-- End UTMify Script -->
+</head>
+<body class="bg-[#EDEDED] text-[#333333] min-h-screen flex flex-col items-center justify-center p-4 antialiased">
+  <!-- Meta Pixel noscript fallback -->
+  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1932684814101405&ev=PageView&noscript=1" /></noscript>
+  <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-gray-200">
+    <div class="mx-auto w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mb-6 shadow-inner animate-bounce">
+      ✓
+    </div>
+    
+    <h1 class="text-2xl font-black text-gray-800 tracking-tight">Obrigado pela sua Compra!</h1>
+    <p class="text-sm text-emerald-600 font-bold mt-1">Seu pagamento foi confirmado com sucesso.</p>
+    
+    <div class="mt-6 border-t border-b border-gray-100 py-6 text-left space-y-4 text-xs sm:text-sm text-gray-600 leading-relaxed">
+      <div class="bg-emerald-50 text-emerald-800 rounded-lg p-3 font-medium text-xs">
+        📦 <b>Importante:</b> O código de rastreio do seu pedido será enviado em até <b>2 dias úteis</b> no seu e-mail cadastrado.
+      </div>
+      <div>
+        <b>Produto:</b> Tapete Bandeja Premium 100% Sob Medida + Lixeira Portátil de Brinde
+      </div>
+      <div>
+        <b>Prazo de entrega:</b> Calculado de acordo com a modalidade selecionada no checkout.
+      </div>
+      <div>
+        <b>Suporte:</b> Se tiver qualquer dúvida, entre em contato conosco através do suporte pós-venda.
+      </div>
+    </div>
+    
+    <div class="mt-8">
+      <a href="/" class="inline-block bg-[#009EE3] hover:bg-[#0089C7] text-white font-bold px-8 py-3.5 rounded-xl text-sm transition shadow-md shadow-[#009EE3]/20">
+        Voltar para a Loja
+      </a>
+    </div>
+  </div>
+</body>
+</html>
