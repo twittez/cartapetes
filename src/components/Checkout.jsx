@@ -270,6 +270,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         customer: {
           name: formData.nome,
           email: formData.email,
+          phone: formData.telefone.replace(/\D/g, ''),
           document: {
             type: "CPF",
             number: formData.cpf.replace(/\D/g, '')
@@ -297,8 +298,40 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       }
 
       setPixCode(data.pix_copia_e_cola || data.qr_code_data);
-      setTransactionId(data.transaction ? data.transaction.transaction_id : (data.pix_key || "TXN_" + Date.now()));
+      const resolvedTxId = data.transaction ? data.transaction.transaction_id : (data.pix_key || "TXN_" + Date.now());
+      setTransactionId(resolvedTxId);
       setStep(4);
+
+      // Persiste os dados de rastreamento server-side, indexados pelo ID da transação.
+      // O webhook do WinnerPay lê esses dados para enviar o Purchase ao Meta com o
+      // MESMO event_id (deduplicação) e com o telefone garantido, sem depender de o
+      // gateway devolver os metadados na notificação (postback).
+      try {
+        await fetch('/store-tracking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionId: resolvedTxId,
+            data: {
+              eventId: purchaseEventId,
+              value: parseFloat(finalPrice.toFixed(2)),
+              currency: 'BRL',
+              nome: formData.nome,
+              email: formData.email,
+              telefone: formData.telefone,
+              cep: formData.cep,
+              cidade: formData.cidade,
+              estado: formData.estado,
+              fbp: getCookie('_fbp') || '',
+              fbc: getCookie('_fbc') || '',
+              userAgent: navigator.userAgent,
+              eventSourceUrl: window.location.origin + '/obrigado.html'
+            }
+          })
+        });
+      } catch (trackErr) {
+        console.warn('Falha ao persistir tracking via /store-tracking:', trackErr);
+      }
     } catch (err) {
       console.error('WinnerPay API Error:', err);
       setApiError(err.message || 'Erro de conexão com o provedor de pagamentos.');

@@ -156,49 +156,15 @@
           if (!response.ok) throw new Error('CAPI proxy error');
           console.log('[Meta CAPI Proxy] Purchase enviado com sucesso!');
         } catch (capiErr) {
-          console.warn('[Meta CAPI Proxy] Falha no proxy do obrigado, tentando direto...', capiErr);
-          // Fallback CAPI direto
-          await sendCapiDirectFallback(capiPayload);
+          // Sem fallback direto ao Graph API a partir do navegador (exporia o Access Token).
+          // O Pixel já cobre o evento e o webhook do servidor envia o CAPI com o mesmo event_id.
+          console.warn('[Meta CAPI Proxy] Falha no proxy do obrigado:', capiErr);
         }
 
         // 5. Remove os dados para não duplicar se der refresh na página
         localStorage.removeItem('cartapetes_purchase_data');
       } catch (err) {
         console.error('Erro ao processar tracking de Purchase:', err);
-      }
-    }
-
-    async function sendCapiDirectFallback(payload) {
-      const pixelId = '1932684814101405';
-      const token = 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
-      const url = `https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${token}`;
-
-      try {
-        const directPayload = {
-          data: [{
-            event_name: payload.event_name,
-            event_time: Math.floor(Date.now() / 1000),
-            event_id: payload.event_id,
-            event_source_url: payload.event_source_url,
-            action_source: 'website',
-            user_data: {
-              client_user_agent: navigator.userAgent,
-              ...payload.user_data
-            },
-            custom_data: payload.custom_data
-          }]
-        };
-
-        await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(directPayload)
-        });
-        console.log('[Meta CAPI Direct Fallback] Purchase enviado com sucesso!');
-      } catch (error) {
-        console.error('[Meta CAPI Direct Fallback] Erro ao enviar Purchase direto:', error);
       }
     }
 

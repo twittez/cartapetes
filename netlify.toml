@@ -19,6 +19,11 @@
   status = 200
 
 [[redirects]]
+  from = "/store-tracking"
+  to = "/.netlify/functions/store-tracking"
+  status = 200
+
+[[redirects]]
   from = "/winnerpay-webhook"
   to = "/.netlify/functions/winnerpay-webhook"
   status = 200
