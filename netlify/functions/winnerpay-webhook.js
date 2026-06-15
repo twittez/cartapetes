@@ -55,13 +55,16 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Extrai os dados do cliente e metadados de rastreamento do Meta
+    // Extrai os dados do cliente e metadados de rastreamento do Meta.
+    // O objeto "customer" é enviado no nível raiz da transação na WinnerPay,
+    // por isso buscamos tanto em metadata.tracking (fonte primária e confiável)
+    // quanto em transaction.customer como reforço.
     const metadata = transaction.metadata || {};
     const tracking = metadata.tracking || {};
-    const customer = metadata.customer || {};
+    const customer = transaction.customer || metadata.customer || {};
 
-    const nome = customer.name || transaction.payerName || transaction.payer_name || body.name || '';
-    const email = customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
+    const nome = tracking.nome || customer.name || transaction.payerName || transaction.payer_name || body.name || '';
+    const email = tracking.email || customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
     const telefone = tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
     const cidade = tracking.cidade || '';
     const estado = tracking.estado || '';
@@ -140,7 +143,7 @@ exports.handler = async (event, context) => {
       event_name: 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
       event_id: eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36)),
-      event_source_url: 'https://cartapetesautomotivos.lovable.app/obrigado.html',
+      event_source_url: tracking.sourceUrl || 'https://seguro.cartapetes.com.br/obrigado.html',
       action_source: 'website',
       user_data: mergedUserData,
       custom_data: customData
@@ -152,7 +155,7 @@ exports.handler = async (event, context) => {
 
     console.log(`[WinnerPay Webhook] Enviando Conversão de Compra para o Meta Pixel ${pixelId} (Event ID: ${capiEvent.event_id})`);
 
-    const response = await fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${pixelId}/events?access_token=${accessToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

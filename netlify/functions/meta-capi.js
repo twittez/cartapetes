@@ -66,7 +66,7 @@ exports.handler = async (event, context) => {
 
     console.log(`[Netlify Function CAPI] Enviando evento ${body.event_name} ao Meta para o Pixel ${pixelId}`);
 
-    const response = await fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${pixelId}/events?access_token=${accessToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
