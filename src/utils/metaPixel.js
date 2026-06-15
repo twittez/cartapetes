@@ -124,50 +124,13 @@ export async function trackMetaEvent(eventName, eventId, customData = {}, hashed
     if (!response.ok) {
       throw new Error(`Proxy respondeu com status ${response.status}`);
     }
-    
+
     const resData = await response.json();
     console.log('[Meta CAPI Proxy] Sucesso:', resData);
   } catch (err) {
-    console.warn('[Meta CAPI Proxy] Falha ao enviar via proxy. Tentando envio direto como fallback...', err);
-    
-    // Fallback: Dispara chamada direta ao Graph API do Meta (caso não use Netlify ou dê erro de proxy)
-    await sendCapiDirectFallback(capiPayload);
-  }
-}
-
-// Fallback direto do lado do cliente para a API do Meta
-async function sendCapiDirectFallback(payload) {
-  const pixelId = '1932684814101405';
-  const token = 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
-  const url = `https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${token}`;
-
-  try {
-    const directPayload = {
-      data: [{
-        event_name: payload.event_name,
-        event_time: Math.floor(Date.now() / 1000),
-        event_id: payload.event_id,
-        event_source_url: payload.event_source_url,
-        action_source: 'website',
-        user_data: {
-          client_user_agent: navigator.userAgent,
-          ...payload.user_data
-        },
-        custom_data: payload.custom_data
-      }]
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(directPayload)
-    });
-
-    const data = await response.json();
-    console.log('[Meta CAPI Direct Fallback] Resposta:', data);
-  } catch (error) {
-    console.error('[Meta CAPI Direct Fallback] Erro ao enviar chamada direta:', error);
+    // Sem fallback direto ao Graph API a partir do navegador: isso exporia o Access
+    // Token publicamente. O Pixel (navegador) já cobre este evento e, para o Purchase,
+    // o webhook do servidor envia o CAPI com o mesmo event_id (deduplicação).
+    console.warn('[Meta CAPI Proxy] Falha ao enviar via proxy:', err);
   }
 }

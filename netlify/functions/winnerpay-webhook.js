@@ -1,11 +1,28 @@
 const crypto = require('crypto');
+const { getStore } = require('@netlify/blobs');
+
+const GRAPH_API_VERSION = 'v21.0';
+const PIXEL_ID = '1932684814101405';
 
 function sha256(str) {
   if (!str) return '';
   return crypto.createHash('sha256').update(str.trim().toLowerCase()).digest('hex');
 }
 
-exports.handler = async (event, context) => {
+// Os gateways às vezes devolvem o campo metadata como string JSON; normaliza para objeto.
+function asObject(value) {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return {};
+    }
+  }
+  return typeof value === 'object' ? value : {};
+}
+
+exports.handler = async (event) => {
   // CORS Preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -55,30 +72,53 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Extrai os dados do cliente e metadados de rastreamento do Meta
-    const metadata = transaction.metadata || {};
-    const tracking = metadata.tracking || {};
-    const customer = metadata.customer || {};
+    // Recupera os dados de rastreamento persistidos pelo checkout (fonte confiável).
+    // Isso garante o mesmo event_id usado no navegador (deduplicação) e o telefone,
+    // mesmo que o gateway não devolva os metadados no postback.
+    const store = getStore({ name: 'purchase-tracking', consistency: 'strong' });
+    let stored = null;
+    if (transactionId) {
+      try {
+        stored = await store.get(String(transactionId), { type: 'json' });
+      } catch (e) {
+        console.warn('[WinnerPay Webhook] Falha ao ler tracking persistido:', e.message);
+      }
+    }
 
-    const nome = customer.name || transaction.payerName || transaction.payer_name || body.name || '';
-    const email = customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
-    const telefone = tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
-    const cidade = tracking.cidade || '';
-    const estado = tracking.estado || '';
-    const cep = tracking.cep || '';
+    // Idempotência: evita Purchase duplicado caso o WinnerPay reenvie o webhook.
+    if (stored && stored.purchaseSent) {
+      console.log(`[WinnerPay Webhook] Purchase já enviado para ${transactionId}. Ignorando reenvio.`);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'Purchase already sent for this transaction' })
+      };
+    }
+
+    // Extrai dados também do payload do gateway (fallback se não houver tracking persistido)
+    const metadata = asObject(transaction.metadata);
+    const tracking = asObject(metadata.tracking);
+    const customer = asObject(transaction.customer || metadata.customer);
+    stored = stored || {};
+
+    const nome = stored.nome || customer.name || transaction.payerName || transaction.payer_name || body.name || '';
+    const email = stored.email || customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
+    const telefone = stored.telefone || tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
+    const cidade = stored.cidade || tracking.cidade || '';
+    const estado = stored.estado || tracking.estado || '';
+    const cep = stored.cep || tracking.cep || '';
 
     // Metadados do Meta (fbp, fbc, userAgent, eventId)
-    const fbp = tracking.fbp || '';
-    const fbc = tracking.fbc || '';
-    const userAgent = tracking.userAgent || '';
-    const eventId = tracking.eventId || '';
+    const fbp = stored.fbp || tracking.fbp || '';
+    const fbc = stored.fbc || tracking.fbc || '';
+    const userAgent = stored.userAgent || tracking.userAgent || '';
+    const eventId = stored.eventId || tracking.eventId || '';
 
-    const value = parseFloat(transaction.amount || transaction.value) || 0;
+    const value = parseFloat(stored.value || transaction.amount || transaction.value) || 0;
 
     console.log('[WinnerPay Webhook] Dados extraídos:', {
       nome,
-      email,
-      telefone,
+      hasEmail: !!email,
+      hasTelefone: !!telefone,
       eventId,
       value
     });
@@ -109,9 +149,9 @@ exports.handler = async (event, context) => {
     if (cep) hashedData.zp = sha256(cep.replace(/\D/g, ''));
 
     // IP de conexão do cliente (obtido a partir do cabeçalho do Netlify)
-    const clientIp = event.headers['x-nf-client-connection-ip'] || 
-                     event.headers['client-ip'] || 
-                     event.headers['x-forwarded-for'] || 
+    const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                     event.headers['client-ip'] ||
+                     event.headers['x-forwarded-for'] ||
                      '127.0.0.1';
 
     const mergedUserData = {
@@ -133,14 +173,16 @@ exports.handler = async (event, context) => {
       }]
     };
 
-    const pixelId = '1932684814101405';
+    // Token lido da variável de ambiente do Netlify; mantém o fallback embutido
+    // (apenas no servidor, nunca exposto ao navegador) para não interromper o envio.
     const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
 
     const capiEvent = {
       event_name: 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
-      event_id: eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36)),
-      event_source_url: 'https://cartapetesautomotivos.lovable.app/obrigado.html',
+      // Reutiliza o event_id do navegador para deduplicar com o Pixel/CAPI da página de obrigado.
+      event_id: eventId || ('evt_' + crypto.randomBytes(8).toString('hex') + '_' + Date.now().toString(36)),
+      event_source_url: stored.eventSourceUrl || 'https://seguro.cartapetes.com.br/obrigado.html',
       action_source: 'website',
       user_data: mergedUserData,
       custom_data: customData
@@ -150,9 +192,9 @@ exports.handler = async (event, context) => {
       data: [capiEvent]
     };
 
-    console.log(`[WinnerPay Webhook] Enviando Conversão de Compra para o Meta Pixel ${pixelId} (Event ID: ${capiEvent.event_id})`);
+    console.log(`[WinnerPay Webhook] Enviando Purchase ao Meta (Pixel ${PIXEL_ID}, Event ID: ${capiEvent.event_id})`);
 
-    const response = await fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${PIXEL_ID}/events?access_token=${accessToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -162,6 +204,15 @@ exports.handler = async (event, context) => {
 
     const responseData = await response.json();
     console.log(`[WinnerPay Webhook] Resposta do Meta CAPI:`, responseData);
+
+    // Marca como enviado para garantir idempotência em reenvios do webhook.
+    if (response.ok && transactionId) {
+      try {
+        await store.setJSON(String(transactionId), { ...stored, purchaseSent: true, sentAt: new Date().toISOString() });
+      } catch (e) {
+        console.warn('[WinnerPay Webhook] Falha ao marcar purchaseSent:', e.message);
+      }
+    }
 
     return {
       statusCode: response.status,
