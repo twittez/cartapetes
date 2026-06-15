@@ -270,6 +270,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         customer: {
           name: formData.nome,
           email: formData.email,
+          phone: formData.telefone.replace(/\D/g, ''),
           document: {
             type: "CPF",
             number: formData.cpf.replace(/\D/g, '')
