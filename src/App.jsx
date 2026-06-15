@@ -28,7 +28,7 @@ export default function App() {
     trackMetaEvent('ViewContent', eventId, {
       content_name: 'Tapete Bandeja Premium Sob Medida + Lixeira de Brinde',
       content_category: 'Automotivo',
-      value: 72.90,
+      value: 124.90,
       currency: 'BRL'
     });
 

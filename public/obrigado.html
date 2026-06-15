@@ -115,6 +115,25 @@
           ...(fbc && { fbc })
         };
 
+        // Dados de Correspondência Avançada para o Pixel do NAVEGADOR.
+        // O Pixel (fbevents.js) faz o hash automaticamente, então aqui os
+        // valores devem ir CRUS/normalizados — nunca com SHA-256 aplicado.
+        const rawUserData = {};
+        if (data.email) rawUserData.em = data.email.trim().toLowerCase();
+        if (data.telefone) {
+          const cleanPhone = data.telefone.replace(/\D/g, '');
+          rawUserData.ph = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+        }
+        if (data.nome) {
+          const nameParts = data.nome.trim().split(/\s+/);
+          if (nameParts[0]) rawUserData.fn = nameParts[0].toLowerCase();
+          if (nameParts.slice(1).join(' ')) rawUserData.ln = nameParts.slice(1).join(' ').toLowerCase();
+        }
+        if (data.cidade) rawUserData.ct = data.cidade.trim().toLowerCase();
+        if (data.estado) rawUserData.st = data.estado.trim().toLowerCase();
+        if (data.cep) rawUserData.zp = data.cep.replace(/\D/g, '');
+        rawUserData.country = 'br';
+
         const customData = {
           value: value,
           currency: currency,
@@ -129,8 +148,8 @@
         // 3. Atualiza o Pixel com os dados do usuário e envia evento Purchase no navegador
         if (window.fbq) {
           console.log('[Meta Pixel] Disparando Purchase...', { value, currency, eventId });
-          // Re-inicializa o Pixel com os dados do cliente para associar à conversão
-          window.fbq('init', '1932684814101405', mergedUserData);
+          // Re-inicializa o Pixel com os dados CRUS do cliente (o Pixel faz o hash sozinho)
+          window.fbq('init', '1932684814101405', rawUserData);
           window.fbq('track', 'Purchase', customData, { eventID: eventId });
         }
 
@@ -156,49 +175,16 @@
           if (!response.ok) throw new Error('CAPI proxy error');
           console.log('[Meta CAPI Proxy] Purchase enviado com sucesso!');
         } catch (capiErr) {
-          console.warn('[Meta CAPI Proxy] Falha no proxy do obrigado, tentando direto...', capiErr);
-          // Fallback CAPI direto
-          await sendCapiDirectFallback(capiPayload);
+          // O proxy de servidor (/meta-capi) é o único canal da CAPI. Não chamamos
+          // o Graph API direto do navegador (exporia o Access Token e seria bloqueado
+          // por CORS/ad blockers). O Purchase do servidor (winnerpay-webhook) cobre o PIX.
+          console.warn('[Meta CAPI Proxy] Falha ao enviar Purchase via proxy do servidor.', capiErr);
         }
 
         // 5. Remove os dados para não duplicar se der refresh na página
         localStorage.removeItem('cartapetes_purchase_data');
       } catch (err) {
         console.error('Erro ao processar tracking de Purchase:', err);
-      }
-    }
-
-    async function sendCapiDirectFallback(payload) {
-      const pixelId = '1932684814101405';
-      const token = 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
-      const url = `https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${token}`;
-
-      try {
-        const directPayload = {
-          data: [{
-            event_name: payload.event_name,
-            event_time: Math.floor(Date.now() / 1000),
-            event_id: payload.event_id,
-            event_source_url: payload.event_source_url,
-            action_source: 'website',
-            user_data: {
-              client_user_agent: navigator.userAgent,
-              ...payload.user_data
-            },
-            custom_data: payload.custom_data
-          }]
-        };
-
-        await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(directPayload)
-        });
-        console.log('[Meta CAPI Direct Fallback] Purchase enviado com sucesso!');
-      } catch (error) {
-        console.error('[Meta CAPI Direct Fallback] Erro ao enviar Purchase direto:', error);
       }
     }
 
