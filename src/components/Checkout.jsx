@@ -243,12 +243,21 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         ? 'https://seguro.cartapetes.com.br'
         : window.location.origin;
 
+      // Telefone apenas com dígitos (DDD + número) para os campos padrão do gateway
+      const cleanPhone = formData.telefone.replace(/\D/g, '');
+
       const winnerpayBody = {
         amount: parseFloat(finalPrice.toFixed(2)),
         description: `Tapete Bandeja Premium - ${vehicle || 'Carro'}`,
         postbackUrl: postbackOrigin + '/winnerpay-webhook',
         metadata: {
           order_id: `ORD-${Date.now()}`,
+          // Dados do cliente expostos no nível superior do metadata para que
+          // apareçam de forma confiável no painel/integrações (pendente e pago).
+          nome: formData.nome,
+          email: formData.email,
+          telefone: cleanPhone,
+          customer_phone: cleanPhone,
           product: {
             name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle}${upsellItems.length > 0 ? ' + ' + upsellItems.map(i => i.title).join(', ') : ''}${perfumeUpsell ? ' + Perfume Automotivo' : ''}`
           },
@@ -258,7 +267,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             fbp: getCookie('_fbp') || '',
             fbc: getCookie('_fbc') || '',
             userAgent: navigator.userAgent,
-            telefone: formData.telefone,
+            telefone: cleanPhone,
             cep: formData.cep,
             cidade: formData.cidade,
             estado: formData.estado
@@ -267,7 +276,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         customer: {
           name: formData.nome,
           email: formData.email,
-          phone: formData.telefone.replace(/\D/g, ''),
+          phone: cleanPhone,
           document: {
             type: "CPF",
             number: formData.cpf.replace(/\D/g, '')
@@ -295,7 +304,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       }
 
       setPixCode(data.pix_copia_e_cola || data.qr_code_data);
-      setTransactionId(data.transaction ? data.transaction.transaction_id : (data.pix_key || "TXN_" + Date.now()));
+      // Extrai o ID da transação de forma resiliente, cobrindo as mesmas chaves
+      // que o webhook do servidor lê. Isso garante que ambos os lados gerem o
+      // MESMO `purchase_<id>` e o Meta deduplique o Purchase corretamente.
+      const txn = data.transaction || {};
+      const resolvedTransactionId =
+        txn.transaction_id || txn.transactionId || txn.id ||
+        data.transaction_id || data.id || data.pix_key || '';
+      setTransactionId(resolvedTransactionId);
       setStep(4);
     } catch (err) {
       console.error('WinnerPay API Error:', err);

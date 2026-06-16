@@ -62,9 +62,9 @@ exports.handler = async (event, context) => {
     const tracking = metadata.tracking || {};
     const customer = transaction.customer || metadata.customer || {};
 
-    const nome = customer.name || transaction.payerName || transaction.payer_name || body.name || '';
-    const email = customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
-    const telefone = tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
+    const nome = customer.name || metadata.nome || transaction.payerName || transaction.payer_name || body.name || '';
+    const email = customer.email || metadata.email || transaction.payerEmail || transaction.payer_email || body.email || '';
+    const telefone = metadata.telefone || metadata.customer_phone || tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
     const cidade = tracking.cidade || '';
     const estado = tracking.estado || '';
     const cep = tracking.cep || '';
