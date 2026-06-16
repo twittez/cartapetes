@@ -185,13 +185,10 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                 setPixPaid(true);
                 clearInterval(intervalId);
                 
-                let purchaseEventId = generateEventId();
-                try {
-                  const pendingData = JSON.parse(localStorage.getItem('cartapetes_purchase_data') || '{}');
-                  if (pendingData.eventId) {
-                    purchaseEventId = pendingData.eventId;
-                  }
-                } catch (e) {}
+                // ID determinístico baseado no ID da transação. Tanto esta página
+                // quanto o webhook do servidor geram o MESMO event_id, garantindo
+                // que o Meta deduplique o Purchase (Pixel do navegador + CAPI).
+                const purchaseEventId = 'purchase_' + transactionId;
 
                 localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
                   value: finalPrice,
@@ -270,6 +267,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         customer: {
           name: formData.nome,
           email: formData.email,
+          phone: formData.telefone.replace(/\D/g, ''),
           document: {
             type: "CPF",
             number: formData.cpf.replace(/\D/g, '')

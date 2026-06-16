@@ -55,10 +55,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Extrai os dados do cliente e metadados de rastreamento do Meta
+    // Extrai os dados do cliente e metadados de rastreamento do Meta.
+    // O objeto `customer` é enviado no nível superior da transação (não dentro
+    // de `metadata`), então é lido a partir de `transaction.customer`.
     const metadata = transaction.metadata || {};
     const tracking = metadata.tracking || {};
-    const customer = metadata.customer || {};
+    const customer = transaction.customer || metadata.customer || {};
 
     const nome = customer.name || transaction.payerName || transaction.payer_name || body.name || '';
     const email = customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
@@ -139,8 +141,11 @@ exports.handler = async (event, context) => {
     const capiEvent = {
       event_name: 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
-      event_id: eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36)),
-      event_source_url: 'https://cartapetesautomotivos.lovable.app/obrigado.html',
+      // ID determinístico baseado no ID da transação — idêntico ao gerado na
+      // página /obrigado.html. Isso permite que o Meta deduplique o Purchase
+      // mesmo que o gateway não retorne o `tracking.eventId` no postback.
+      event_id: transactionId ? ('purchase_' + transactionId) : (eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36))),
+      event_source_url: event.headers['referer'] || 'https://seguro.cartapetes.com.br/obrigado.html',
       action_source: 'website',
       user_data: mergedUserData,
       custom_data: customData
