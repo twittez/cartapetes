@@ -55,14 +55,16 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Extrai os dados do cliente e metadados de rastreamento do Meta
+    // Extrai os dados do cliente e metadados de rastreamento do Meta.
+    // O objeto `customer` é enviado no nível superior da transação (não dentro
+    // de `metadata`), então é lido a partir de `transaction.customer`.
     const metadata = transaction.metadata || {};
     const tracking = metadata.tracking || {};
-    const customer = metadata.customer || {};
+    const customer = transaction.customer || metadata.customer || {};
 
-    const nome = customer.name || transaction.payerName || transaction.payer_name || body.name || '';
-    const email = customer.email || transaction.payerEmail || transaction.payer_email || body.email || '';
-    const telefone = tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
+    const nome = customer.name || metadata.nome || transaction.payerName || transaction.payer_name || body.name || '';
+    const email = customer.email || metadata.email || transaction.payerEmail || transaction.payer_email || body.email || '';
+    const telefone = metadata.telefone || metadata.customer_phone || tracking.telefone || customer.phone || transaction.payerPhone || transaction.payer_phone || '';
     const cidade = tracking.cidade || '';
     const estado = tracking.estado || '';
     const cep = tracking.cep || '';
@@ -139,8 +141,12 @@ exports.handler = async (event, context) => {
     const capiEvent = {
       event_name: 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
-      event_id: eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36)),
-      event_source_url: 'https://cartapetesautomotivos.lovable.app/obrigado.html',
+      // ID de deduplicação: prioriza o event_id compartilhado que o checkout gerou
+      // e enviou em metadata.tracking.eventId (o MESMO usado pelo Pixel do navegador
+      // na página de obrigado). Caso o gateway não retorne esse campo, cai para um id
+      // determinístico derivado do id da transação. Assim o Meta deduplica o Purchase.
+      event_id: eventId || (transactionId ? ('purchase_' + transactionId) : ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36))),
+      event_source_url: event.headers['referer'] || 'https://seguro.cartapetes.com.br/obrigado.html',
       action_source: 'website',
       user_data: mergedUserData,
       custom_data: customData

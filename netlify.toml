@@ -24,6 +24,11 @@
   status = 200
 
 [[redirects]]
+  from = "/pagouai-charge"
+  to = "/.netlify/functions/pagouai-charge"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
