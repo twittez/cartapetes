@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { trackMetaEvent, generateEventId, getHashedUserData, getCookie } from '../utils/metaPixel';
 
+// Chave PÚBLICA da Pagou.ai (publicável — usada apenas para tokenizar o cartão no
+// navegador). A chave secreta fica somente no servidor (env PAGOUAI_SECRET_KEY).
+const PAGOUAI_PUBLIC_KEY = 'pk_live_v2NGjG3qniUNZyds4Gq94kXGzvN2Kl9uZB';
+
 export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
   const [paymentMethod, setPaymentMethod] = useState('pix'); // 'pix', 'card'
@@ -184,18 +188,25 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
               if (status === 'paid' || status === 'completed') {
                 setPixPaid(true);
                 clearInterval(intervalId);
-                
-                // ID determinístico baseado no ID da transação. Tanto esta página
-                // quanto o webhook do servidor geram o MESMO event_id, garantindo
-                // que o Meta deduplique o Purchase (Pixel do navegador + CAPI).
-                const purchaseEventId = 'purchase_' + transactionId;
+
+                // Reaproveita o MESMO event_id gerado na criação do PIX (e enviado
+                // ao gateway em metadata.tracking.eventId). O Pixel do navegador
+                // (página de obrigado) e o webhook do servidor usam esse id idêntico,
+                // garantindo que o Meta deduplique o Purchase. Como fallback, deriva
+                // do id da transação caso o dado salvo não exista.
+                let sharedEventId = 'purchase_' + transactionId;
+                try {
+                  const saved = JSON.parse(localStorage.getItem('cartapetes_purchase_data') || '{}');
+                  if (saved.eventId) sharedEventId = saved.eventId;
+                } catch { /* ignora */ }
 
                 localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
                   value: finalPrice,
                   currency: 'BRL',
-                  eventId: purchaseEventId,
+                  eventId: sharedEventId,
                   kit: kit,
                   upsellItems: upsellItems,
+                  perfumeUpsell: perfumeUpsell,
                   nome: formData.nome,
                   email: formData.email,
                   telefone: formData.telefone,
@@ -321,6 +332,104 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     }
   };
 
+  // Processa pagamento no CARTÃO DE CRÉDITO via Pagou.ai.
+  // O cartão é tokenizado no navegador (chave pública); apenas o token é enviado
+  // ao servidor, que cria a transação com a chave secreta. Em caso de aprovação,
+  // o próprio servidor dispara o Purchase (CAPI) com o mesmo event_id usado pelo
+  // Pixel do navegador na página de obrigado — garantindo a deduplicação no Meta.
+  const handleCardPayment = async () => {
+    if (!validateCardDetails()) return;
+    setIsApiLoading(true);
+    setApiError('');
+    try {
+      if (typeof window.Pagou === 'undefined' || !window.Pagou.encrypt) {
+        throw new Error('Processador de cartão indisponível. Recarregue a página e tente novamente.');
+      }
+
+      const [expMonth, expYearShort = ''] = formData.cardExpiry.split('/');
+      const expYear = expYearShort.length === 2 ? parseInt('20' + expYearShort, 10) : parseInt(expYearShort, 10);
+
+      window.Pagou.setPublicKey(PAGOUAI_PUBLIC_KEY);
+
+      const cardToken = await window.Pagou.encrypt({
+        number: formData.cardNumber.replace(/\D/g, ''),
+        holderName: formData.cardName,
+        expMonth: parseInt(expMonth, 10),
+        expYear: expYear,
+        cvv: formData.cardCvv
+      });
+
+      if (!cardToken) throw new Error('Não foi possível validar os dados do cartão. Confira as informações.');
+
+      // ID determinístico compartilhado entre o Pixel (navegador) e o CAPI (servidor).
+      const purchaseEventId = 'purchase_card_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+      const cleanPhone = formData.telefone.replace(/\D/g, '');
+
+      const chargeBody = {
+        token: cardToken,
+        amount: parseFloat(finalPrice.toFixed(2)),
+        installments: parseInt(formData.installments, 10) || 1,
+        eventId: purchaseEventId,
+        customer: {
+          name: formData.nome,
+          email: formData.email,
+          phone: cleanPhone,
+          document: formData.cpf.replace(/\D/g, '')
+        },
+        items: [{
+          title: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle}`,
+          quantity: 1,
+          unitPrice: parseFloat(finalPrice.toFixed(2))
+        }],
+        tracking: {
+          fbp: getCookie('_fbp') || '',
+          fbc: getCookie('_fbc') || '',
+          userAgent: navigator.userAgent,
+          cep: formData.cep,
+          cidade: formData.cidade,
+          estado: formData.estado
+        }
+      };
+
+      const response = await fetch('/pagouai-charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chargeBody)
+      });
+      const data = await response.json();
+      console.log('Pagou.ai charge response:', data);
+
+      if (!data.success) {
+        throw new Error(data.error || 'Pagamento não aprovado. Verifique os dados do cartão ou utilize outro.');
+      }
+
+      // Compra aprovada — grava dados para o Pixel do navegador na página de obrigado.
+      // O CAPI já foi enviado pelo servidor com o mesmo event_id (skipCapi evita duplicar).
+      localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
+        value: finalPrice,
+        currency: 'BRL',
+        eventId: purchaseEventId,
+        skipCapi: true,
+        kit: kit,
+        upsellItems: upsellItems,
+        perfumeUpsell: perfumeUpsell,
+        nome: formData.nome,
+        email: formData.email,
+        telefone: formData.telefone,
+        cep: formData.cep,
+        cidade: formData.cidade,
+        estado: formData.estado
+      }));
+
+      window.location.href = '/obrigado.html';
+    } catch (err) {
+      console.error('Card payment error:', err);
+      setApiError(err.message || 'Erro ao processar o pagamento no cartão.');
+    } finally {
+      setIsApiLoading(false);
+    }
+  };
+
   const getCardBrand = (number) => {
     const cleanNumber = number.replace(/\s?/g, '');
     if (cleanNumber.startsWith('4')) return 'visa';
@@ -387,24 +496,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       if (paymentMethod === 'pix') {
         await handleCreatePix();
       } else {
-        if (validateCardDetails()) {
-          const purchaseEventId = generateEventId();
-          localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
-            value: finalPrice,
-            currency: 'BRL',
-            eventId: purchaseEventId,
-            kit: kit,
-            upsellItems: upsellItems,
-            perfumeUpsell: perfumeUpsell,
-            nome: formData.nome,
-            email: formData.email,
-            telefone: formData.telefone,
-            cep: formData.cep,
-            cidade: formData.cidade,
-            estado: formData.estado
-          }));
-          window.location.href = '/obrigado.html';
-        }
+        await handleCardPayment();
       }
     }
   };

@@ -83,6 +83,16 @@
         const currency = data.currency || 'BRL';
         const eventId = data.eventId || ('evt_' + Math.random().toString(36).substring(2, 15));
 
+        // Idempotência: evita disparar o Purchase duas vezes se a página for
+        // recarregada antes da limpeza do localStorage.
+        const firedKey = 'cartapetes_fired_' + eventId;
+        if (localStorage.getItem(firedKey)) {
+          console.log('[Purchase] Evento já disparado para este pedido. Ignorando.');
+          localStorage.removeItem('cartapetes_purchase_data');
+          return;
+        }
+        localStorage.setItem(firedKey, '1');
+
         // 2. Prepara os dados de correspondência avançada (hashing SHA-256)
         const hashedData = {};
         if (data.email) hashedData.em = await sha256(data.email);
@@ -134,31 +144,35 @@
           window.fbq('track', 'Purchase', customData, { eventID: eventId });
         }
 
-        // 4. Envia o evento para a API de Conversões (CAPI) do servidor
-        const capiPayload = {
-          event_name: 'Purchase',
-          event_id: eventId,
-          event_source_url: window.location.href,
-          user_data: mergedUserData,
-          custom_data: customData
-        };
+        // 4. Envia o evento para a API de Conversões (CAPI) do servidor.
+        //    No cartão (skipCapi), o servidor já enviou o Purchase com o mesmo
+        //    event_id, então aqui disparamos apenas o Pixel do navegador.
+        if (!data.skipCapi) {
+          const capiPayload = {
+            event_name: 'Purchase',
+            event_id: eventId,
+            event_source_url: window.location.href,
+            user_data: mergedUserData,
+            custom_data: customData
+          };
 
-        try {
-          console.log('[Meta CAPI Proxy] Enviando Purchase via proxy...');
-          const response = await fetch('/meta-capi', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(capiPayload)
-          });
+          try {
+            console.log('[Meta CAPI Proxy] Enviando Purchase via proxy...');
+            const response = await fetch('/meta-capi', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(capiPayload)
+            });
 
-          if (!response.ok) throw new Error('CAPI proxy error');
-          console.log('[Meta CAPI Proxy] Purchase enviado com sucesso!');
-        } catch (capiErr) {
-          console.warn('[Meta CAPI Proxy] Falha no proxy do obrigado, tentando direto...', capiErr);
-          // Fallback CAPI direto
-          await sendCapiDirectFallback(capiPayload);
+            if (!response.ok) throw new Error('CAPI proxy error');
+            console.log('[Meta CAPI Proxy] Purchase enviado com sucesso!');
+          } catch (capiErr) {
+            console.warn('[Meta CAPI Proxy] Falha no proxy do obrigado, tentando direto...', capiErr);
+            // Fallback CAPI direto
+            await sendCapiDirectFallback(capiPayload);
+          }
         }
 
         // 5. Remove os dados para não duplicar se der refresh na página

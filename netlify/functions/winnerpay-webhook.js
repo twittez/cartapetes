@@ -141,10 +141,11 @@ exports.handler = async (event, context) => {
     const capiEvent = {
       event_name: 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
-      // ID determinístico baseado no ID da transação — idêntico ao gerado na
-      // página /obrigado.html. Isso permite que o Meta deduplique o Purchase
-      // mesmo que o gateway não retorne o `tracking.eventId` no postback.
-      event_id: transactionId ? ('purchase_' + transactionId) : (eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36))),
+      // ID de deduplicação: prioriza o event_id compartilhado que o checkout gerou
+      // e enviou em metadata.tracking.eventId (o MESMO usado pelo Pixel do navegador
+      // na página de obrigado). Caso o gateway não retorne esse campo, cai para um id
+      // determinístico derivado do id da transação. Assim o Meta deduplica o Purchase.
+      event_id: eventId || (transactionId ? ('purchase_' + transactionId) : ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36))),
       event_source_url: event.headers['referer'] || 'https://seguro.cartapetes.com.br/obrigado.html',
       action_source: 'website',
       user_data: mergedUserData,
