@@ -162,6 +162,7 @@ export default function VehicleSelector({ id, buyUrl, onCheckout }) {
         onClick={handleCheckout}
         disabled={!isValid}
         id={id}
+        data-xtracky-checkout=""
         className="w-full rounded-xl bg-[#FF5A00] py-3.5 text-sm font-bold text-white uppercase tracking-wide shadow-md hover:bg-[#e64f00] disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition duration-200"
       >
         {isValid ? 'Comprar agora' : 'Selecione seu veículo'}
