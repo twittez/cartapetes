@@ -172,8 +172,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             {
               method: 'GET',
               headers: {
-                'X-Client-Id': '657c5bb7-ce8d-4243-9e9f-a8aa5e157fab',
-                'X-Client-Secret': '262e504fe6aec6db99249f4ee30e6288816028cc97e1b352a21e1992964c2de1',
+                'X-Client-Id': '25ec7953-fa82-41b4-a1ff-4cb0181d93e1',
+                'X-Client-Secret': '92d3a7623a62a4fe835cfb5c7d9d6181006c404cd9134a8f6b77c57e45a87dd8',
               }
             }
           );
@@ -282,8 +282,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       const response = await fetch('/winnerpay-api/financial/receber-pix', {
         method: 'POST',
         headers: {
-          'X-Client-Id': '657c5bb7-ce8d-4243-9e9f-a8aa5e157fab',
-          'X-Client-Secret': '262e504fe6aec6db99249f4ee30e6288816028cc97e1b352a21e1992964c2de1',
+          'X-Client-Id': '25ec7953-fa82-41b4-a1ff-4cb0181d93e1',
+          'X-Client-Secret': '92d3a7623a62a4fe835cfb5c7d9d6181006c404cd9134a8f6b77c57e45a87dd8',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(winnerpayBody),
