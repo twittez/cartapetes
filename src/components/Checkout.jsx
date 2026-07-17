@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { trackMetaEvent, generateEventId, getHashedUserData, getCookie } from '../utils/metaPixel';
 import { supabase } from '../utils/supabase';
 
@@ -58,15 +58,21 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [transactionId, setTransactionId] = useState('');
   const [copied, setCopied] = useState(false);
 
+  const initiatedRef = useRef(false);
+
   // Scroll to top and trigger InitiateCheckout on mount
   useEffect(() => {
     window.scrollTo(0, 0);
-    const eventId = generateEventId();
-    trackMetaEvent('InitiateCheckout', eventId, {
-      value: finalPrice,
-      currency: 'BRL',
-      content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
-    });
+    
+    if (!initiatedRef.current) {
+      initiatedRef.current = true;
+      const eventId = generateEventId();
+      trackMetaEvent('InitiateCheckout', eventId, {
+        value: finalPrice,
+        currency: 'BRL',
+        content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
+      });
+    }
   }, []);
 
   const saveLeadToSupabase = async (status, transactionIdOverride = null, extraData = {}) => {
@@ -236,10 +242,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                 clearInterval(intervalId);
                 
                 let purchaseEventId = generateEventId();
+                let pendingData = {};
                 try {
-                  const pendingData = JSON.parse(localStorage.getItem('cartapetes_purchase_data') || '{}');
-                  if (pendingData.eventId) {
-                    purchaseEventId = pendingData.eventId;
+                  const pendingDataStr = localStorage.getItem('cartapetes_pending_purchase_data');
+                  if (pendingDataStr) {
+                    pendingData = JSON.parse(pendingDataStr);
+                    if (pendingData.eventId) {
+                      purchaseEventId = pendingData.eventId;
+                    }
                   }
                 } catch (e) {}
 
@@ -256,6 +266,9 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                   cidade: formData.cidade,
                   estado: formData.estado
                 }));
+
+                // Limpa dados temporários do Pix pendente
+                localStorage.removeItem('cartapetes_pending_purchase_data');
 
                 saveLeadToSupabase('pago');
 
@@ -279,7 +292,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     try {
       const purchaseEventId = generateEventId();
 
-      localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
+      localStorage.setItem('cartapetes_pending_purchase_data', JSON.stringify({
         value: finalPrice,
         currency: 'BRL',
         eventId: purchaseEventId,
