@@ -34,7 +34,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
   // Pricing calculations
   const originalPrice = kit === 'basico' ? 197.00 : 297.00;
-  const basePrice = kit === 'basico' ? 72.90 : 124.90;
+  const basePrice = kit === 'basico' ? 87.90 : 137.90;
   const upsellTotal = upsellItems.reduce((sum, item) => sum + item.price, 0) + (perfumeUpsell ? 14.90 : 0);
   const subtotal = basePrice + upsellTotal;
   const shippingCost = shippingMethod === 'pac' ? 0 : shippingMethod === 'sedex' ? 12.90 : 18.90;

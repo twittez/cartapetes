@@ -29,13 +29,21 @@ export default function App() {
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [locationText, setLocationText] = useState('sua região');
 
+  // Garante que a página sempre inicia no topo (sem scroll para âncoras ou posição anterior)
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
   // Rastreia o evento ViewContent no carregamento inicial da Landing Page e busca localização do lead
   useEffect(() => {
     const eventId = generateEventId();
     trackMetaEvent('ViewContent', eventId, {
       content_name: 'Tapete Bandeja Premium Sob Medida + Lixeira de Brinde',
       content_category: 'Automotivo',
-      value: 72.90,
+      value: 87.90,
       currency: 'BRL'
     });
 
@@ -70,8 +78,16 @@ export default function App() {
 
   // Calculate pricing values dynamically
   const originalPrice = selectedKit === 'basico' ? 197.00 : 297.00;
-  const currentPrice = selectedKit === 'basico' ? 72.90 : 124.90;
+  const currentPrice = selectedKit === 'basico' ? 87.90 : 137.90;
   const savings = originalPrice - currentPrice;
+
+  const scrollToSelector = (e) => {
+    if (e) e.preventDefault();
+    const el = document.getElementById('seletor-veiculo');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
 
   if (showCheckout) {
@@ -196,24 +212,40 @@ export default function App() {
             </span>
           </div>
 
-          {/* Vehicle Configurator Selector */}
-          <div className="mt-6 bg-gradient-to-br from-[#FFFBF9] to-white rounded-2xl p-5 border border-[#FFE2DA]/70 shadow-sm">
-            <label className="block text-sm font-extrabold mb-3 text-[#111827]">Selecione o seu Veículo</label>
-            <VehicleSelector 
-              id="cta-hero" 
-              buyUrl={CHECKOUT_URLS[selectedKit]} 
-              onCheckout={(vehicleInfo) => {
-                setSelectedVehicle(vehicleInfo);
-                setShowCheckout(true);
-              }}
-            />
-            {/* Trust badges below CTA */}
-            <div className="mt-4 flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-[11px] text-gray-500 font-semibold border-t border-gray-100 pt-3">
-              <span className="flex items-center gap-1.5">🔒 Compra Segura</span>
-              <span className="flex items-center gap-1.5">🚚 Frete com Rastreio</span>
-              <span className="flex items-center gap-1.5">🔄 7 Dias de Garantia</span>
+          {/* Vehicle Configurator Selector — DESTAQUE PRETO */}
+          <div className="mt-6 relative" id="seletor-veiculo">
+            <div className="relative bg-white rounded-2xl border-2 border-[#111827] shadow-[0_6px_32px_rgba(0,0,0,0.18)]">
+              {/* Header preto profissional */}
+              <div className="bg-[#111827] px-5 py-3.5 rounded-t-[14px] flex items-center justify-between">
+                <div>
+                  <p className="text-white font-black text-sm tracking-wide">SELECIONE SEU VEÍCULO</p>
+                  <p className="text-gray-400 text-[11px] mt-0.5">Tapete feito sob medida para o seu carro</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse block" />
+                  <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wider">Em estoque</span>
+                </div>
+              </div>
+
+              <div className="p-5">
+                <VehicleSelector
+                  id="cta-hero"
+                  buyUrl={CHECKOUT_URLS[selectedKit]}
+                  onCheckout={(vehicleInfo) => {
+                    setSelectedVehicle(vehicleInfo);
+                    setShowCheckout(true);
+                  }}
+                />
+                {/* Trust badges */}
+                <div className="mt-4 flex flex-wrap justify-center items-center gap-x-5 gap-y-2 text-[11px] text-gray-500 font-semibold border-t border-gray-100 pt-3">
+                  <span className="flex items-center gap-1.5">🔒 Compra Segura</span>
+                  <span className="flex items-center gap-1.5">🚚 Frete com Rastreio</span>
+                  <span className="flex items-center gap-1.5">🔄 7 Dias de Garantia</span>
+                </div>
+              </div>
             </div>
           </div>
+
 
           {/* Kit Selection Card Option */}
           <div className="mt-6">
@@ -240,7 +272,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-extrabold text-[#111827]">R$ 72,90</div>
+                    <div className="font-extrabold text-[#111827]">R$ 87,90</div>
                     <div className="text-xs text-gray-400 line-through">R$ 197,00</div>
                   </div>
                 </div>
@@ -277,7 +309,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-extrabold text-[#FF5A00] text-lg">R$ 124,90</div>
+                    <div className="font-extrabold text-[#FF5A00] text-lg">R$ 137,90</div>
                     <div className="text-xs text-gray-400 line-through">R$ 297,00</div>
                   </div>
                 </div>
@@ -874,7 +906,8 @@ export default function App() {
           </div>
         </div>
         <a
-          href="#produto"
+          href="#seletor-veiculo"
+          onClick={scrollToSelector}
           className="flex-1 max-w-[200px] bg-[#FF5A00] text-white font-bold py-3.5 rounded-xl text-xs text-center uppercase tracking-wide shadow-sm hover:bg-[#e64f00] transition duration-150"
         >
           Comprar agora

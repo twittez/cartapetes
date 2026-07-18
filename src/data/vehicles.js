@@ -1,15 +1,103 @@
+// ==========================================
+//   CARTAPETES — BANCO DE VEÍCULOS COMPLETO
+//   Atualizado até 2026 | Marcas do mundo todo
+// ==========================================
+
+export const BRAND_LOGOS = {
+  // Brasil (mais vendidos)
+  Chevrolet:     "https://logo.clearbit.com/chevrolet.com",
+  Fiat:          "https://logo.clearbit.com/fiat.com",
+  Ford:          "https://logo.clearbit.com/ford.com",
+  Honda:         "https://logo.clearbit.com/honda.com",
+  Hyundai:       "https://logo.clearbit.com/hyundai.com",
+  Jeep:          "https://logo.clearbit.com/jeep.com",
+  Nissan:        "https://logo.clearbit.com/nissan.com",
+  Renault:       "https://logo.clearbit.com/renault.com",
+  Toyota:        "https://logo.clearbit.com/toyota.com",
+  Volkswagen:    "https://logo.clearbit.com/volkswagen.com",
+  Citroën:       "https://logo.clearbit.com/citroen.com",
+  Peugeot:       "https://logo.clearbit.com/peugeot.com",
+  Mitsubishi:    "https://logo.clearbit.com/mitsubishi.com",
+  Kia:           "https://logo.clearbit.com/kia.com",
+  BYD:           "https://logo.clearbit.com/byd.com",
+  GWM:           "https://logo.clearbit.com/gwm.com",
+  RAM:           "https://logo.clearbit.com/ramtrucks.com",
+  "Caoa Chery":  "https://logo.clearbit.com/caoa.com.br",
+  JAC:           "https://logo.clearbit.com/jacmotors.com.br",
+  Omoda:         "https://logo.clearbit.com/omodacar.com",
+  Lifan:         "https://logo.clearbit.com/lifan.com",
+  // Premium / Luxo
+  BMW:           "https://logo.clearbit.com/bmw.com",
+  "Mercedes-Benz": "https://logo.clearbit.com/mercedes-benz.com",
+  Audi:          "https://logo.clearbit.com/audi.com",
+  Volvo:         "https://logo.clearbit.com/volvo.com",
+  "Land Rover":  "https://logo.clearbit.com/landrover.com",
+  Porsche:       "https://logo.clearbit.com/porsche.com",
+  Lexus:         "https://logo.clearbit.com/lexus.com",
+  Jaguar:        "https://logo.clearbit.com/jaguar.com",
+  Tesla:         "https://logo.clearbit.com/tesla.com",
+  Subaru:        "https://logo.clearbit.com/subaru.com",
+  Suzuki:        "https://logo.clearbit.com/suzuki.com",
+  Mazda:         "https://logo.clearbit.com/mazda.com",
+  // Superesportivos
+  Ferrari:       "https://logo.clearbit.com/ferrari.com",
+  Lamborghini:   "https://logo.clearbit.com/lamborghini.com",
+  "Alfa Romeo":  "https://logo.clearbit.com/alfaromeo.com",
+  Maserati:      "https://logo.clearbit.com/maserati.com",
+  McLaren:       "https://logo.clearbit.com/mclaren.com",
+  Bentley:       "https://logo.clearbit.com/bentley.com",
+  "Rolls-Royce": "https://logo.clearbit.com/rolls-roycemotorcars.com",
+  Aston:         "https://logo.clearbit.com/astonmartin.com",
+  // Outros mercados
+  Dodge:         "https://logo.clearbit.com/dodge.com",
+  Chrysler:      "https://logo.clearbit.com/chrysler.com",
+  Cadillac:      "https://logo.clearbit.com/cadillac.com",
+  Buick:         "https://logo.clearbit.com/buick.com",
+  Lincoln:       "https://logo.clearbit.com/lincoln.com",
+  Acura:         "https://logo.clearbit.com/acura.com",
+  Infiniti:      "https://logo.clearbit.com/infinitiusa.com",
+  Genesis:       "https://logo.clearbit.com/genesis.com",
+  MINI:          "https://logo.clearbit.com/mini.com",
+  Seat:          "https://logo.clearbit.com/seat.com",
+  Skoda:         "https://logo.clearbit.com/skoda-auto.com",
+  Opel:          "https://logo.clearbit.com/opel.com",
+  DS:            "https://logo.clearbit.com/ds-automobiles.com",
+  "Changan":     "https://logo.clearbit.com/changan.com",
+  "Haval":       "https://logo.clearbit.com/haval.com",
+  "Geely":       "https://logo.clearbit.com/geely.com",
+  "MG Motor":    "https://logo.clearbit.com/mgmotor.co.uk",
+  "Volvo":       "https://logo.clearbit.com/volvocars.com",
+  Lynk:          "https://logo.clearbit.com/lynkco.com",
+  "Tank":        "https://logo.clearbit.com/tanksuv.com",
+  Rivian:        "https://logo.clearbit.com/rivian.com",
+  Lucid:         "https://logo.clearbit.com/lucidmotors.com",
+  Fisker:        "https://logo.clearbit.com/fiskerinc.com",
+  Zeekr:         "https://logo.clearbit.com/zeekr.com",
+  Nio:           "https://logo.clearbit.com/nio.com",
+  Xpeng:         "https://logo.clearbit.com/hixpeng.com",
+  "Li Auto":     "https://logo.clearbit.com/lixiang.com",
+};
+
 export const VEHICLES_DB = {
+  // ══════════════════════════════════════════
+  //  MARCAS MAIS VENDIDAS NO BRASIL (DESTAQUE)
+  // ══════════════════════════════════════════
+
   Chevrolet: [
     { name: "Onix", startYear: 2012, endYear: 2026 },
     { name: "Onix Plus", startYear: 2020, endYear: 2026 },
     { name: "Prisma", startYear: 2006, endYear: 2019 },
-    { name: "Cruze", startYear: 2011, endYear: 2024 },
-    { name: "Cruze Sport6", startYear: 2012, endYear: 2024 },
+    { name: "Cruze", startYear: 2011, endYear: 2026 },
+    { name: "Cruze Sport6", startYear: 2012, endYear: 2026 },
     { name: "Tracker", startYear: 2001, endYear: 2026 },
     { name: "S10", startYear: 1995, endYear: 2026 },
     { name: "Spin", startYear: 2012, endYear: 2026 },
-    { name: "Cobalt", startYear: 2011, endYear: 2020 },
     { name: "Montana", startYear: 2003, endYear: 2026 },
+    { name: "Cobalt", startYear: 2011, endYear: 2020 },
+    { name: "Trailblazer", startYear: 2012, endYear: 2026 },
+    { name: "Equinox", startYear: 2017, endYear: 2026 },
+    { name: "Captiva", startYear: 2008, endYear: 2017 },
+    { name: "Agile", startYear: 2009, endYear: 2016 },
     { name: "Celta", startYear: 2000, endYear: 2015 },
     { name: "Classic", startYear: 2002, endYear: 2016 },
     { name: "Astra", startYear: 1998, endYear: 2011 },
@@ -17,17 +105,16 @@ export const VEHICLES_DB = {
     { name: "Vectra GT", startYear: 2007, endYear: 2011 },
     { name: "Meriva", startYear: 2002, endYear: 2012 },
     { name: "Zafira", startYear: 2001, endYear: 2012 },
-    { name: "Corsa", startYear: 1994, endYear: 2012 },
+    { name: "Corsa Hatch", startYear: 1994, endYear: 2012 },
     { name: "Corsa Sedan", startYear: 1995, endYear: 2012 },
-    { name: "Trailblazer", startYear: 2012, endYear: 2026 },
-    { name: "Captiva", startYear: 2008, endYear: 2017 },
-    { name: "Equinox", startYear: 2017, endYear: 2026 },
     { name: "Sonic", startYear: 2012, endYear: 2014 },
-    { name: "Agile", startYear: 2009, endYear: 2016 },
     { name: "Omega", startYear: 1992, endYear: 2012 },
     { name: "Blazer", startYear: 1995, endYear: 2011 },
-    { name: "Bolt", startYear: 2019, endYear: 2024 }
+    { name: "Bolt EV", startYear: 2019, endYear: 2026 },
+    { name: "Silverado", startYear: 2001, endYear: 2026 },
+    { name: "Blazer EV", startYear: 2024, endYear: 2026 },
   ],
+
   Fiat: [
     { name: "Argo", startYear: 2017, endYear: 2026 },
     { name: "Cronos", startYear: 2018, endYear: 2026 },
@@ -36,9 +123,10 @@ export const VEHICLES_DB = {
     { name: "Toro", startYear: 2016, endYear: 2026 },
     { name: "Pulse", startYear: 2021, endYear: 2026 },
     { name: "Fastback", startYear: 2022, endYear: 2026 },
+    { name: "Titano", startYear: 2024, endYear: 2026 },
     { name: "Uno", startYear: 1984, endYear: 2021 },
     { name: "Palio", startYear: 1996, endYear: 2018 },
-    { name: "Weekend (Palio)", startYear: 1997, endYear: 2020 },
+    { name: "Palio Weekend", startYear: 1997, endYear: 2020 },
     { name: "Siena", startYear: 1997, endYear: 2021 },
     { name: "Grand Siena", startYear: 2012, endYear: 2021 },
     { name: "Fiorino", startYear: 1980, endYear: 2026 },
@@ -51,38 +139,53 @@ export const VEHICLES_DB = {
     { name: "Marea Weekend", startYear: 1998, endYear: 2007 },
     { name: "Tempra", startYear: 1991, endYear: 1998 },
     { name: "Freemont", startYear: 2011, endYear: 2016 },
-    { name: "Doblo", startYear: 2001, endYear: 2021 },
+    { name: "Doblò", startYear: 2001, endYear: 2022 },
     { name: "Ducato", startYear: 1998, endYear: 2026 },
-    { name: "Titano", startYear: 2024, endYear: 2026 }
   ],
+
   Ford: [
     { name: "Ka", startYear: 1997, endYear: 2021 },
     { name: "Ka Sedan", startYear: 2014, endYear: 2021 },
-    { name: "Fiesta", startYear: 1996, endYear: 2019 },
+    { name: "Fiesta Hatch", startYear: 1996, endYear: 2019 },
     { name: "Fiesta Sedan", startYear: 2001, endYear: 2019 },
-    { name: "Focus", startYear: 2000, endYear: 2019 },
+    { name: "Focus Hatch", startYear: 2000, endYear: 2019 },
     { name: "Focus Sedan", startYear: 2000, endYear: 2019 },
-    { name: "EcoSport", startYear: 2003, endYear: 2021 },
+    { name: "EcoSport", startYear: 2003, endYear: 2022 },
     { name: "Ranger", startYear: 1994, endYear: 2026 },
     { name: "Territory", startYear: 2020, endYear: 2026 },
     { name: "Maverick", startYear: 2022, endYear: 2026 },
     { name: "Bronco", startYear: 2021, endYear: 2026 },
+    { name: "Bronco Sport", startYear: 2021, endYear: 2026 },
     { name: "Fusion", startYear: 2006, endYear: 2020 },
     { name: "Edge", startYear: 2008, endYear: 2021 },
     { name: "Mustang", startYear: 1995, endYear: 2026 },
+    { name: "Mustang Mach-E", startYear: 2021, endYear: 2026 },
     { name: "Escort", startYear: 1983, endYear: 2003 },
-    { name: "Mondeo", startYear: 1995, endYear: 2006 }
+    { name: "Mondeo", startYear: 1995, endYear: 2006 },
+    { name: "F-150", startYear: 1995, endYear: 2026 },
+    { name: "F-250", startYear: 1999, endYear: 2026 },
+    { name: "Explorer", startYear: 2000, endYear: 2026 },
+    { name: "Expedition", startYear: 2000, endYear: 2026 },
   ],
+
   Honda: [
     { name: "Civic", startYear: 1997, endYear: 2026 },
+    { name: "Civic Type R", startYear: 2018, endYear: 2026 },
     { name: "Fit", startYear: 2003, endYear: 2021 },
     { name: "City Hatch", startYear: 2022, endYear: 2026 },
     { name: "City Sedan", startYear: 2009, endYear: 2026 },
     { name: "HR-V", startYear: 2015, endYear: 2026 },
     { name: "WR-V", startYear: 2017, endYear: 2026 },
     { name: "CR-V", startYear: 2000, endYear: 2026 },
-    { name: "Accord", startYear: 1995, endYear: 2026 }
+    { name: "BR-V", startYear: 2023, endYear: 2026 },
+    { name: "Accord", startYear: 1995, endYear: 2026 },
+    { name: "Jazz", startYear: 2002, endYear: 2021 },
+    { name: "Pilot", startYear: 2003, endYear: 2026 },
+    { name: "Passport", startYear: 2019, endYear: 2026 },
+    { name: "Ridgeline", startYear: 2006, endYear: 2026 },
+    { name: "Prologue (EV)", startYear: 2024, endYear: 2026 },
   ],
+
   Hyundai: [
     { name: "HB20", startYear: 2012, endYear: 2026 },
     { name: "HB20S", startYear: 2013, endYear: 2026 },
@@ -93,60 +196,29 @@ export const VEHICLES_DB = {
     { name: "Santa Fe", startYear: 2001, endYear: 2026 },
     { name: "i30", startYear: 2009, endYear: 2017 },
     { name: "Azera", startYear: 2007, endYear: 2020 },
-    { name: "Elantra", startYear: 2011, endYear: 2018 },
-    { name: "Veloster", startYear: 2011, endYear: 2014 },
-    { name: "Veracruz", startYear: 2007, endYear: 2012 },
+    { name: "Elantra", startYear: 2011, endYear: 2026 },
+    { name: "Veloster", startYear: 2011, endYear: 2022 },
+    { name: "Kona", startYear: 2023, endYear: 2026 },
+    { name: "Staria", startYear: 2021, endYear: 2026 },
+    { name: "IONIQ 5", startYear: 2021, endYear: 2026 },
+    { name: "IONIQ 6", startYear: 2023, endYear: 2026 },
+    { name: "Palisade", startYear: 2020, endYear: 2026 },
+    { name: "Venue", startYear: 2020, endYear: 2026 },
     { name: "HR (Caminhão)", startYear: 2005, endYear: 2026 },
-    { name: "Kona", startYear: 2023, endYear: 2026 }
   ],
+
   Jeep: [
     { name: "Renegade", startYear: 2015, endYear: 2026 },
     { name: "Compass", startYear: 2012, endYear: 2026 },
     { name: "Commander", startYear: 2021, endYear: 2026 },
     { name: "Wrangler", startYear: 2000, endYear: 2026 },
     { name: "Grand Cherokee", startYear: 1995, endYear: 2026 },
-    { name: "Gladiator", startYear: 2022, endYear: 2026 }
+    { name: "Gladiator", startYear: 2022, endYear: 2026 },
+    { name: "Cherokee", startYear: 1995, endYear: 2023 },
+    { name: "Avenger", startYear: 2023, endYear: 2026 },
+    { name: "Wagoneer", startYear: 2021, endYear: 2026 },
   ],
-  Nissan: [
-    { name: "Kicks", startYear: 2016, endYear: 2026 },
-    { name: "Versa", startYear: 2011, endYear: 2026 },
-    { name: "Sentra", startYear: 2000, endYear: 2026 },
-    { name: "Frontier", startYear: 2000, endYear: 2026 },
-    { name: "March", startYear: 2011, endYear: 2020 },
-    { name: "Tiida", startYear: 2007, endYear: 2013 },
-    { name: "Livina", startYear: 2009, endYear: 2015 },
-    { name: "Grand Livina", startYear: 2009, endYear: 2015 }
-  ],
-  Renault: [
-    { name: "Kwid", startYear: 2017, endYear: 2026 },
-    { name: "Sandero", startYear: 2007, endYear: 2024 },
-    { name: "Logan", startYear: 2007, endYear: 2024 },
-    { name: "Duster", startYear: 2011, endYear: 2026 },
-    { name: "Captur", startYear: 2017, endYear: 2023 },
-    { name: "Oroch", startYear: 2015, endYear: 2026 },
-    { name: "Clio Hatch", startYear: 1996, endYear: 2016 },
-    { name: "Clio Sedan", startYear: 2000, endYear: 2009 },
-    { name: "Megane Sedan", startYear: 1998, endYear: 2011 },
-    { name: "Megane Grand Tour", startYear: 2006, endYear: 2012 },
-    { name: "Scenic", startYear: 1999, endYear: 2010 },
-    { name: "Fluence", startYear: 2011, endYear: 2018 },
-    { name: "Kardian", startYear: 2024, endYear: 2026 },
-    { name: "Kangoo", startYear: 2000, endYear: 2026 }
-  ],
-  Toyota: [
-    { name: "Corolla", startYear: 1998, endYear: 2026 },
-    { name: "Corolla Cross", startYear: 2021, endYear: 2026 },
-    { name: "Hilux", startYear: 1995, endYear: 2026 },
-    { name: "SW4", startYear: 1995, endYear: 2026 },
-    { name: "Yaris Hatch", startYear: 2018, endYear: 2026 },
-    { name: "Yaris Sedan", startYear: 2018, endYear: 2026 },
-    { name: "Etios Hatch", startYear: 2012, endYear: 2021 },
-    { name: "Etios Sedan", startYear: 2012, endYear: 2021 },
-    { name: "RAV4", startYear: 2000, endYear: 2026 },
-    { name: "Fielder", startYear: 2004, endYear: 2008 },
-    { name: "Prius", startYear: 2013, endYear: 2021 },
-    { name: "Camry", startYear: 1995, endYear: 2026 }
-  ],
+
   Volkswagen: [
     { name: "Gol", startYear: 1980, endYear: 2023 },
     { name: "Polo", startYear: 2002, endYear: 2026 },
@@ -164,220 +236,690 @@ export const VEHICLES_DB = {
     { name: "Voyage", startYear: 1981, endYear: 2023 },
     { name: "Up!", startYear: 2014, endYear: 2021 },
     { name: "Golf", startYear: 1994, endYear: 2020 },
-    { name: "Santana", startYear: 1984, endYear: 2006 },
+    { name: "Golf GTI", startYear: 2014, endYear: 2024 },
     { name: "Bora", startYear: 2000, endYear: 2011 },
     { name: "Passat", startYear: 1974, endYear: 2020 },
     { name: "Tiguan", startYear: 2009, endYear: 2026 },
+    { name: "Touareg", startYear: 2004, endYear: 2026 },
+    { name: "T-Roc", startYear: 2022, endYear: 2026 },
+    { name: "ID.4", startYear: 2022, endYear: 2026 },
+    { name: "ID.3", startYear: 2023, endYear: 2026 },
     { name: "Kombi", startYear: 1957, endYear: 2013 },
-    { name: "Parati", startYear: 1982, endYear: 2012 }
+    { name: "Parati", startYear: 1982, endYear: 2012 },
+    { name: "Santana", startYear: 1984, endYear: 2006 },
+    { name: "Phaeton", startYear: 2004, endYear: 2016 },
   ],
+
+  Toyota: [
+    { name: "Corolla", startYear: 1998, endYear: 2026 },
+    { name: "Corolla Cross", startYear: 2021, endYear: 2026 },
+    { name: "Corolla Cross GR-S", startYear: 2023, endYear: 2026 },
+    { name: "Hilux", startYear: 1995, endYear: 2026 },
+    { name: "Hilux SW4", startYear: 1995, endYear: 2026 },
+    { name: "Yaris Hatch", startYear: 2018, endYear: 2026 },
+    { name: "Yaris Sedan", startYear: 2018, endYear: 2026 },
+    { name: "Etios Hatch", startYear: 2012, endYear: 2021 },
+    { name: "Etios Sedan", startYear: 2012, endYear: 2021 },
+    { name: "RAV4", startYear: 2000, endYear: 2026 },
+    { name: "Prius", startYear: 2013, endYear: 2026 },
+    { name: "Camry", startYear: 1995, endYear: 2026 },
+    { name: "GR86", startYear: 2022, endYear: 2026 },
+    { name: "GR Supra", startYear: 2019, endYear: 2026 },
+    { name: "Land Cruiser", startYear: 1995, endYear: 2026 },
+    { name: "4Runner", startYear: 1995, endYear: 2026 },
+    { name: "Fortuner", startYear: 2005, endYear: 2026 },
+    { name: "Tacoma", startYear: 1995, endYear: 2026 },
+    { name: "Tundra", startYear: 2000, endYear: 2026 },
+    { name: "bZ4X (EV)", startYear: 2023, endYear: 2026 },
+    { name: "Fielder", startYear: 2004, endYear: 2008 },
+  ],
+
+  Nissan: [
+    { name: "Kicks", startYear: 2016, endYear: 2026 },
+    { name: "Versa", startYear: 2011, endYear: 2026 },
+    { name: "Sentra", startYear: 2000, endYear: 2026 },
+    { name: "Frontier", startYear: 2000, endYear: 2026 },
+    { name: "Pathfinder", startYear: 2000, endYear: 2026 },
+    { name: "Altima", startYear: 2000, endYear: 2026 },
+    { name: "Maxima", startYear: 2000, endYear: 2021 },
+    { name: "Murano", startYear: 2003, endYear: 2026 },
+    { name: "Rogue", startYear: 2008, endYear: 2026 },
+    { name: "Armada", startYear: 2004, endYear: 2026 },
+    { name: "GT-R", startYear: 2007, endYear: 2024 },
+    { name: "Leaf (EV)", startYear: 2011, endYear: 2026 },
+    { name: "Ariya (EV)", startYear: 2022, endYear: 2026 },
+    { name: "March", startYear: 2011, endYear: 2020 },
+    { name: "Tiida", startYear: 2007, endYear: 2013 },
+    { name: "Livina", startYear: 2009, endYear: 2015 },
+    { name: "Grand Livina", startYear: 2009, endYear: 2015 },
+    { name: "X-Trail", startYear: 2003, endYear: 2026 },
+    { name: "Qashqai", startYear: 2009, endYear: 2026 },
+  ],
+
+  Renault: [
+    { name: "Kwid", startYear: 2017, endYear: 2026 },
+    { name: "Sandero", startYear: 2007, endYear: 2024 },
+    { name: "Sandero Stepway", startYear: 2010, endYear: 2024 },
+    { name: "Logan", startYear: 2007, endYear: 2024 },
+    { name: "Duster", startYear: 2011, endYear: 2026 },
+    { name: "Captur", startYear: 2017, endYear: 2026 },
+    { name: "Oroch", startYear: 2015, endYear: 2026 },
+    { name: "Kangoo", startYear: 2000, endYear: 2026 },
+    { name: "Kardian", startYear: 2024, endYear: 2026 },
+    { name: "Megane E-Tech (EV)", startYear: 2023, endYear: 2026 },
+    { name: "Clio Hatch", startYear: 1996, endYear: 2016 },
+    { name: "Clio Sedan", startYear: 2000, endYear: 2009 },
+    { name: "Megane Sedan", startYear: 1998, endYear: 2011 },
+    { name: "Megane Grand Tour", startYear: 2006, endYear: 2012 },
+    { name: "Scenic", startYear: 1999, endYear: 2010 },
+    { name: "Fluence", startYear: 2011, endYear: 2018 },
+    { name: "Koleos", startYear: 2008, endYear: 2020 },
+    { name: "Arkana", startYear: 2022, endYear: 2026 },
+    { name: "Austral", startYear: 2023, endYear: 2026 },
+  ],
+
+  Mitsubishi: [
+    { name: "L200 Triton", startYear: 1995, endYear: 2026 },
+    { name: "ASX", startYear: 2010, endYear: 2026 },
+    { name: "Outlander", startYear: 2003, endYear: 2026 },
+    { name: "Outlander PHEV", startYear: 2019, endYear: 2026 },
+    { name: "Eclipse Cross", startYear: 2018, endYear: 2026 },
+    { name: "Pajero Full", startYear: 1995, endYear: 2021 },
+    { name: "Pajero Sport", startYear: 1998, endYear: 2026 },
+    { name: "Pajero TR4", startYear: 2002, endYear: 2015 },
+    { name: "Lancer", startYear: 2011, endYear: 2019 },
+    { name: "Galant", startYear: 1995, endYear: 2007 },
+    { name: "Colt", startYear: 2006, endYear: 2014 },
+    { name: "Space Star", startYear: 2015, endYear: 2022 },
+  ],
+
   Citroën: [
     { name: "C3", startYear: 2003, endYear: 2026 },
-    { name: "C4 Cactus", startYear: 2018, endYear: 2026 },
     { name: "C3 Aircross", startYear: 2010, endYear: 2026 },
+    { name: "C4 Cactus", startYear: 2018, endYear: 2026 },
     { name: "C4 Lounge", startYear: 2013, endYear: 2020 },
     { name: "C4 Pallas", startYear: 2007, endYear: 2013 },
     { name: "C4 Picasso", startYear: 2007, endYear: 2019 },
     { name: "Xsara Picasso", startYear: 2001, endYear: 2012 },
     { name: "C5", startYear: 2001, endYear: 2015 },
-    { name: "C3 Picasso", startYear: 2011, endYear: 2015 }
+    { name: "C3 Picasso", startYear: 2011, endYear: 2015 },
+    { name: "Berlingo", startYear: 2002, endYear: 2026 },
+    { name: "C5 Aircross", startYear: 2020, endYear: 2026 },
+    { name: "ë-C3 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "C5 X", startYear: 2022, endYear: 2026 },
   ],
+
   Peugeot: [
     { name: "208", startYear: 2013, endYear: 2026 },
     { name: "2008", startYear: 2015, endYear: 2026 },
     { name: "3008", startYear: 2010, endYear: 2026 },
-    { name: "5008", startYear: 2018, endYear: 2022 },
+    { name: "408", startYear: 2023, endYear: 2026 },
+    { name: "5008", startYear: 2018, endYear: 2026 },
     { name: "206", startYear: 1999, endYear: 2009 },
     { name: "207 Hatch", startYear: 2008, endYear: 2014 },
     { name: "207 Sedan", startYear: 2008, endYear: 2014 },
-    { name: "Hoggar (Picape)", startYear: 2010, endYear: 2014 },
     { name: "307", startYear: 2002, endYear: 2012 },
-    { name: "308", startYear: 2012, endYear: 2019 },
-    { name: "408", startYear: 2011, endYear: 2019 },
-    { name: "Partner", startYear: 1999, endYear: 2026 }
+    { name: "308", startYear: 2012, endYear: 2026 },
+    { name: "Partner", startYear: 1999, endYear: 2026 },
+    { name: "e-208 (EV)", startYear: 2021, endYear: 2026 },
+    { name: "Hoggar", startYear: 2010, endYear: 2014 },
+    { name: "RCZ", startYear: 2010, endYear: 2015 },
   ],
-  Mitsubishi: [
-    { name: "L200 Triton", startYear: 1995, endYear: 2026 },
-    { name: "ASX", startYear: 2010, endYear: 2021 },
-    { name: "Outlander", startYear: 2003, endYear: 2026 },
-    { name: "Pajero TR4", startYear: 2002, endYear: 2015 },
-    { name: "Pajero Full", startYear: 1995, endYear: 2021 },
-    { name: "Pajero Sport", startYear: 1998, endYear: 2026 },
-    { name: "Eclipse Cross", startYear: 2018, endYear: 2026 },
-    { name: "Lancer", startYear: 2011, endYear: 2019 }
-  ],
+
   Kia: [
-    { name: "Picanto", startYear: 2007, endYear: 2020 },
+    { name: "Picanto", startYear: 2007, endYear: 2026 },
     { name: "Cerato", startYear: 2006, endYear: 2026 },
     { name: "Sportage", startYear: 1995, endYear: 2026 },
     { name: "Sorento", startYear: 2003, endYear: 2026 },
-    { name: "Soul", startYear: 2009, endYear: 2020 },
+    { name: "Soul", startYear: 2009, endYear: 2024 },
     { name: "Stonic", startYear: 2021, endYear: 2026 },
     { name: "Niro", startYear: 2022, endYear: 2026 },
-    { name: "Bongo", startYear: 2004, endYear: 2026 }
+    { name: "EV6", startYear: 2022, endYear: 2026 },
+    { name: "EV9", startYear: 2024, endYear: 2026 },
+    { name: "K5", startYear: 2021, endYear: 2026 },
+    { name: "Carnival", startYear: 2022, endYear: 2026 },
+    { name: "Telluride", startYear: 2020, endYear: 2026 },
+    { name: "Seltos", startYear: 2020, endYear: 2026 },
+    { name: "Bongo", startYear: 2004, endYear: 2026 },
   ],
+
+  BYD: [
+    { name: "Dolphin", startYear: 2023, endYear: 2026 },
+    { name: "Dolphin Mini", startYear: 2024, endYear: 2026 },
+    { name: "Song Plus", startYear: 2022, endYear: 2026 },
+    { name: "Song Pro", startYear: 2024, endYear: 2026 },
+    { name: "Yuan Plus / Atto 3", startYear: 2022, endYear: 2026 },
+    { name: "Han", startYear: 2022, endYear: 2026 },
+    { name: "Seal", startYear: 2023, endYear: 2026 },
+    { name: "Tan", startYear: 2022, endYear: 2026 },
+    { name: "King (Shark)", startYear: 2025, endYear: 2026 },
+    { name: "Seagull", startYear: 2024, endYear: 2026 },
+    { name: "Sealion 6", startYear: 2024, endYear: 2026 },
+    { name: "Sealion 7", startYear: 2024, endYear: 2026 },
+  ],
+
+  GWM: [
+    { name: "Haval H6", startYear: 2023, endYear: 2026 },
+    { name: "Haval H6 PHEV", startYear: 2024, endYear: 2026 },
+    { name: "Ora 03", startYear: 2023, endYear: 2026 },
+    { name: "Tank 300", startYear: 2024, endYear: 2026 },
+    { name: "Tank 500", startYear: 2024, endYear: 2026 },
+    { name: "Poer (Pickup)", startYear: 2023, endYear: 2026 },
+  ],
+
+  RAM: [
+    { name: "Rampage", startYear: 2023, endYear: 2026 },
+    { name: "1500", startYear: 2021, endYear: 2026 },
+    { name: "2500", startYear: 2005, endYear: 2026 },
+    { name: "3500", startYear: 2022, endYear: 2026 },
+    { name: "Classic", startYear: 2022, endYear: 2023 },
+  ],
+
+  "Caoa Chery": [
+    { name: "Tiggo 2", startYear: 2018, endYear: 2021 },
+    { name: "Tiggo 3x", startYear: 2021, endYear: 2022 },
+    { name: "Tiggo 5x", startYear: 2018, endYear: 2026 },
+    { name: "Tiggo 7", startYear: 2019, endYear: 2026 },
+    { name: "Tiggo 7 Pro", startYear: 2022, endYear: 2026 },
+    { name: "Tiggo 8", startYear: 2020, endYear: 2026 },
+    { name: "Tiggo 8 Pro Max", startYear: 2023, endYear: 2026 },
+    { name: "Arrizo 6 Pro", startYear: 2020, endYear: 2026 },
+    { name: "QQ", startYear: 2011, endYear: 2020 },
+  ],
+
+  JAC: [
+    { name: "T40", startYear: 2017, endYear: 2026 },
+    { name: "T50", startYear: 2018, endYear: 2021 },
+    { name: "T60", startYear: 2019, endYear: 2021 },
+    { name: "E-JS1 (EV)", startYear: 2021, endYear: 2026 },
+    { name: "E-10X (EV)", startYear: 2023, endYear: 2026 },
+    { name: "J3", startYear: 2011, endYear: 2016 },
+  ],
+
+  Omoda: [
+    { name: "Omoda 5", startYear: 2024, endYear: 2026 },
+    { name: "Omoda E5 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "Omoda 7", startYear: 2024, endYear: 2026 },
+    { name: "Omoda 4", startYear: 2025, endYear: 2026 },
+  ],
+
+  Lifan: [
+    { name: "X60", startYear: 2013, endYear: 2019 },
+    { name: "320", startYear: 2010, endYear: 2014 },
+    { name: "530", startYear: 2014, endYear: 2018 },
+  ],
+
+  // ══════════════════════════════════
+  //  PREMIUM / LUXO
+  // ══════════════════════════════════
+
   BMW: [
     { name: "Série 1", startYear: 2004, endYear: 2026 },
     { name: "Série 2", startYear: 2014, endYear: 2026 },
     { name: "Série 3", startYear: 1995, endYear: 2026 },
+    { name: "Série 3 Touring", startYear: 2002, endYear: 2026 },
     { name: "Série 4", startYear: 2013, endYear: 2026 },
     { name: "Série 5", startYear: 1995, endYear: 2026 },
+    { name: "Série 7", startYear: 1995, endYear: 2026 },
     { name: "X1", startYear: 2009, endYear: 2026 },
     { name: "X2", startYear: 2018, endYear: 2026 },
     { name: "X3", startYear: 2004, endYear: 2026 },
     { name: "X4", startYear: 2014, endYear: 2026 },
     { name: "X5", startYear: 2000, endYear: 2026 },
     { name: "X6", startYear: 2008, endYear: 2026 },
-    { name: "Z4", startYear: 2003, endYear: 2026 }
+    { name: "X7", startYear: 2019, endYear: 2026 },
+    { name: "Z4", startYear: 2003, endYear: 2026 },
+    { name: "M2", startYear: 2016, endYear: 2026 },
+    { name: "M3", startYear: 1995, endYear: 2026 },
+    { name: "M4", startYear: 2014, endYear: 2026 },
+    { name: "M5", startYear: 1998, endYear: 2026 },
+    { name: "iX3 (EV)", startYear: 2021, endYear: 2026 },
+    { name: "i4 (EV)", startYear: 2022, endYear: 2026 },
+    { name: "iX (EV)", startYear: 2022, endYear: 2026 },
+    { name: "i7 (EV)", startYear: 2023, endYear: 2026 },
+    { name: "iX1 (EV)", startYear: 2023, endYear: 2026 },
   ],
+
   "Mercedes-Benz": [
     { name: "Classe A", startYear: 1999, endYear: 2026 },
     { name: "Classe B", startYear: 2005, endYear: 2019 },
     { name: "Classe C", startYear: 1995, endYear: 2026 },
+    { name: "Classe C Touring", startYear: 2002, endYear: 2026 },
     { name: "Classe E", startYear: 1995, endYear: 2026 },
+    { name: "Classe E Wagon", startYear: 2003, endYear: 2026 },
     { name: "Classe S", startYear: 1995, endYear: 2026 },
+    { name: "Classe G (G63 AMG)", startYear: 2000, endYear: 2026 },
     { name: "GLA", startYear: 2014, endYear: 2026 },
     { name: "GLB", startYear: 2020, endYear: 2026 },
     { name: "GLC", startYear: 2015, endYear: 2026 },
     { name: "GLE", startYear: 2015, endYear: 2026 },
     { name: "GLS", startYear: 2016, endYear: 2026 },
-    { name: "CLA", startYear: 2013, endYear: 2026 }
+    { name: "CLA", startYear: 2013, endYear: 2026 },
+    { name: "CLS", startYear: 2004, endYear: 2024 },
+    { name: "AMG GT", startYear: 2015, endYear: 2026 },
+    { name: "EQA (EV)", startYear: 2021, endYear: 2026 },
+    { name: "EQB (EV)", startYear: 2022, endYear: 2026 },
+    { name: "EQC (EV)", startYear: 2020, endYear: 2026 },
+    { name: "EQE (EV)", startYear: 2022, endYear: 2026 },
+    { name: "EQS (EV)", startYear: 2022, endYear: 2026 },
+    { name: "Sprinter", startYear: 2000, endYear: 2026 },
   ],
+
   Audi: [
-    { name: "A1", startYear: 2011, endYear: 2018 },
+    { name: "A1", startYear: 2011, endYear: 2026 },
     { name: "A3 Hatch", startYear: 1997, endYear: 2026 },
     { name: "A3 Sedan", startYear: 2014, endYear: 2026 },
     { name: "A4", startYear: 1995, endYear: 2026 },
-    { name: "A5", startYear: 2007, endYear: 2026 },
+    { name: "A4 Avant", startYear: 1999, endYear: 2026 },
+    { name: "A5 Sportback", startYear: 2009, endYear: 2026 },
+    { name: "A5 Coupé", startYear: 2007, endYear: 2026 },
     { name: "A6", startYear: 1995, endYear: 2026 },
+    { name: "A7", startYear: 2010, endYear: 2026 },
+    { name: "A8", startYear: 1995, endYear: 2026 },
+    { name: "Q2", startYear: 2017, endYear: 2026 },
     { name: "Q3", startYear: 2011, endYear: 2026 },
+    { name: "Q3 Sportback", startYear: 2020, endYear: 2026 },
     { name: "Q5", startYear: 2008, endYear: 2026 },
+    { name: "Q5 Sportback", startYear: 2021, endYear: 2026 },
     { name: "Q7", startYear: 2006, endYear: 2026 },
-    { name: "TT", startYear: 1998, endYear: 2023 }
+    { name: "Q8", startYear: 2019, endYear: 2026 },
+    { name: "RS3", startYear: 2012, endYear: 2026 },
+    { name: "RS4", startYear: 2006, endYear: 2026 },
+    { name: "RS5", startYear: 2012, endYear: 2026 },
+    { name: "RS6 Avant", startYear: 2002, endYear: 2026 },
+    { name: "TT", startYear: 1998, endYear: 2023 },
+    { name: "R8", startYear: 2007, endYear: 2025 },
+    { name: "e-tron (EV)", startYear: 2019, endYear: 2026 },
+    { name: "Q4 e-tron (EV)", startYear: 2021, endYear: 2026 },
+    { name: "e-tron GT (EV)", startYear: 2021, endYear: 2026 },
   ],
+
   Volvo: [
     { name: "C30", startYear: 2006, endYear: 2013 },
     { name: "V40", startYear: 1996, endYear: 2019 },
     { name: "S60", startYear: 2000, endYear: 2026 },
+    { name: "V60", startYear: 2011, endYear: 2026 },
+    { name: "V90", startYear: 2016, endYear: 2026 },
+    { name: "S90", startYear: 2016, endYear: 2026 },
     { name: "XC40", startYear: 2018, endYear: 2026 },
-    { name: "EX30", startYear: 2024, endYear: 2026 },
+    { name: "XC40 Recharge (EV)", startYear: 2021, endYear: 2026 },
     { name: "XC60", startYear: 2008, endYear: 2026 },
-    { name: "XC90", startYear: 2002, endYear: 2026 }
+    { name: "XC90", startYear: 2002, endYear: 2026 },
+    { name: "EX30 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "EX40 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "EX90 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "EC40 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "EM90 (EV)", startYear: 2025, endYear: 2026 },
   ],
+
   "Land Rover": [
-    { name: "Discovery", startYear: 1995, endYear: 2026 },
+    { name: "Discovery 4", startYear: 1995, endYear: 2016 },
+    { name: "Discovery 5", startYear: 2017, endYear: 2026 },
     { name: "Discovery Sport", startYear: 2015, endYear: 2026 },
     { name: "Range Rover Evoque", startYear: 2011, endYear: 2026 },
     { name: "Range Rover Velar", startYear: 2017, endYear: 2026 },
     { name: "Range Rover Sport", startYear: 2005, endYear: 2026 },
-    { name: "Defender", startYear: 1995, endYear: 2026 },
-    { name: "Freelander", startYear: 1998, endYear: 2015 }
+    { name: "Range Rover (Full Size)", startYear: 1995, endYear: 2026 },
+    { name: "Defender 90", startYear: 2020, endYear: 2026 },
+    { name: "Defender 110", startYear: 2020, endYear: 2026 },
+    { name: "Freelander", startYear: 1998, endYear: 2015 },
   ],
+
+  Porsche: [
+    { name: "911 Carrera", startYear: 1997, endYear: 2026 },
+    { name: "911 Carrera S", startYear: 1997, endYear: 2026 },
+    { name: "911 Targa", startYear: 2003, endYear: 2026 },
+    { name: "911 Turbo", startYear: 1997, endYear: 2026 },
+    { name: "911 GT3", startYear: 2004, endYear: 2026 },
+    { name: "718 Boxster", startYear: 2016, endYear: 2026 },
+    { name: "718 Cayman", startYear: 2016, endYear: 2026 },
+    { name: "Cayenne", startYear: 2002, endYear: 2026 },
+    { name: "Cayenne Coupé", startYear: 2020, endYear: 2026 },
+    { name: "Macan", startYear: 2014, endYear: 2026 },
+    { name: "Macan EV", startYear: 2024, endYear: 2026 },
+    { name: "Panamera", startYear: 2009, endYear: 2026 },
+    { name: "Taycan", startYear: 2020, endYear: 2026 },
+    { name: "Taycan Cross Turismo", startYear: 2021, endYear: 2026 },
+  ],
+
+  Lexus: [
+    { name: "UX", startYear: 2019, endYear: 2026 },
+    { name: "NX", startYear: 2015, endYear: 2026 },
+    { name: "RX", startYear: 2000, endYear: 2026 },
+    { name: "RX 500h", startYear: 2023, endYear: 2026 },
+    { name: "GX", startYear: 2003, endYear: 2026 },
+    { name: "LX 600", startYear: 2022, endYear: 2026 },
+    { name: "ES", startYear: 1995, endYear: 2026 },
+    { name: "IS", startYear: 2001, endYear: 2026 },
+    { name: "IS500 F Sport", startYear: 2022, endYear: 2026 },
+    { name: "LS", startYear: 1995, endYear: 2026 },
+    { name: "LC 500", startYear: 2017, endYear: 2026 },
+    { name: "RC", startYear: 2015, endYear: 2024 },
+    { name: "RZ (EV)", startYear: 2023, endYear: 2026 },
+  ],
+
+  Jaguar: [
+    { name: "F-Pace", startYear: 2016, endYear: 2026 },
+    { name: "E-Pace", startYear: 2017, endYear: 2026 },
+    { name: "I-Pace (EV)", startYear: 2018, endYear: 2026 },
+    { name: "XE", startYear: 2015, endYear: 2024 },
+    { name: "XF", startYear: 2008, endYear: 2025 },
+    { name: "F-Type", startYear: 2013, endYear: 2025 },
+    { name: "XJ", startYear: 2003, endYear: 2020 },
+  ],
+
   Subaru: [
     { name: "Forester", startYear: 1997, endYear: 2026 },
-    { name: "XV", startYear: 2012, endYear: 2021 },
+    { name: "XV / Crosstrek", startYear: 2012, endYear: 2026 },
     { name: "Outback", startYear: 1996, endYear: 2026 },
     { name: "Impreza", startYear: 1995, endYear: 2026 },
-    { name: "WRX", startYear: 2014, endYear: 2026 }
+    { name: "WRX", startYear: 2014, endYear: 2026 },
+    { name: "BRZ", startYear: 2013, endYear: 2026 },
+    { name: "Legacy", startYear: 1995, endYear: 2024 },
+    { name: "Ascent", startYear: 2019, endYear: 2026 },
+    { name: "Solterra (EV)", startYear: 2023, endYear: 2026 },
   ],
+
   Suzuki: [
     { name: "Jimny", startYear: 1998, endYear: 2026 },
     { name: "Jimny Sierra", startYear: 2019, endYear: 2026 },
     { name: "Vitara", startYear: 1995, endYear: 2026 },
     { name: "Grand Vitara", startYear: 1998, endYear: 2016 },
-    { name: "S-Cross", startYear: 2015, endYear: 2021 }
+    { name: "S-Cross", startYear: 2015, endYear: 2026 },
+    { name: "Baleno", startYear: 2016, endYear: 2026 },
+    { name: "Swift", startYear: 2005, endYear: 2026 },
+    { name: "Ertiga", startYear: 2018, endYear: 2026 },
+    { name: "Ignis", startYear: 2017, endYear: 2026 },
   ],
-  "Caoa Chery": [
-    { name: "Tiggo 2", startYear: 2018, endYear: 2021 },
-    { name: "Tiggo 3x", startYear: 2021, endYear: 2022 },
-    { name: "Tiggo 5x", startYear: 2018, endYear: 2026 },
-    { name: "Tiggo 7", startYear: 2019, endYear: 2026 },
-    { name: "Tiggo 8", startYear: 2020, endYear: 2026 },
-    { name: "Arrizo 5", startYear: 2018, endYear: 2021 },
-    { name: "Arrizo 6", startYear: 2020, endYear: 2026 },
-    { name: "QQ", startYear: 2011, endYear: 2020 }
+
+  Mazda: [
+    { name: "Mazda2", startYear: 2007, endYear: 2026 },
+    { name: "Mazda3 Hatch", startYear: 2003, endYear: 2026 },
+    { name: "Mazda3 Sedan", startYear: 2003, endYear: 2026 },
+    { name: "Mazda6", startYear: 2002, endYear: 2024 },
+    { name: "CX-3", startYear: 2016, endYear: 2024 },
+    { name: "CX-30", startYear: 2020, endYear: 2026 },
+    { name: "CX-5", startYear: 2012, endYear: 2026 },
+    { name: "CX-60", startYear: 2023, endYear: 2026 },
+    { name: "CX-90", startYear: 2024, endYear: 2026 },
+    { name: "MX-5 (Miata)", startYear: 1995, endYear: 2026 },
+    { name: "MX-30 (EV)", startYear: 2022, endYear: 2026 },
+    { name: "BT-50 (Pickup)", startYear: 2008, endYear: 2026 },
+    { name: "Tribute", startYear: 2001, endYear: 2011 },
   ],
-  JAC: [
-    { name: "T40", startYear: 2017, endYear: 2026 },
-    { name: "T50", startYear: 2018, endYear: 2021 },
-    { name: "T60", startYear: 2019, endYear: 2021 },
-    { name: "E-JS1", startYear: 2021, endYear: 2026 },
-    { name: "J3", startYear: 2011, endYear: 2016 }
+
+  // ══════════════════════════════════
+  //  SUPERESPORTIVOS
+  // ══════════════════════════════════
+
+  Ferrari: [
+    { name: "Roma", startYear: 2020, endYear: 2026 },
+    { name: "Roma Spider", startYear: 2024, endYear: 2026 },
+    { name: "F8 Tributo", startYear: 2019, endYear: 2023 },
+    { name: "SF90 Stradale", startYear: 2019, endYear: 2026 },
+    { name: "SF90 Spider", startYear: 2021, endYear: 2026 },
+    { name: "812 Superfast", startYear: 2017, endYear: 2024 },
+    { name: "812 GTS", startYear: 2019, endYear: 2024 },
+    { name: "Purosangue", startYear: 2023, endYear: 2026 },
+    { name: "296 GTB", startYear: 2022, endYear: 2026 },
+    { name: "296 GTS", startYear: 2023, endYear: 2026 },
+    { name: "12Cilindri", startYear: 2025, endYear: 2026 },
   ],
-  Lifan: [
-    { name: "X60", startYear: 2013, endYear: 2019 },
-    { name: "320", startYear: 2010, endYear: 2014 },
-    { name: "530", startYear: 2014, endYear: 2018 }
+
+  Lamborghini: [
+    { name: "Urus", startYear: 2018, endYear: 2026 },
+    { name: "Urus SE (PHEV)", startYear: 2024, endYear: 2026 },
+    { name: "Huracán", startYear: 2014, endYear: 2024 },
+    { name: "Huracán Sterrato", startYear: 2023, endYear: 2024 },
+    { name: "Aventador", startYear: 2011, endYear: 2022 },
+    { name: "Revuelto (PHEV)", startYear: 2023, endYear: 2026 },
+    { name: "Temerario (PHEV)", startYear: 2025, endYear: 2026 },
   ],
-  BYD: [
-    { name: "Dolphin", startYear: 2023, endYear: 2026 },
-    { name: "Dolphin Mini", startYear: 2024, endYear: 2026 },
-    { name: "Song Plus", startYear: 2022, endYear: 2026 },
-    { name: "Yuan Plus", startYear: 2022, endYear: 2026 },
-    { name: "Han", startYear: 2022, endYear: 2026 },
-    { name: "Seal", startYear: 2023, endYear: 2026 },
-    { name: "Song Pro", startYear: 2024, endYear: 2026 },
-    { name: "Tan", startYear: 2022, endYear: 2026 }
+
+  "Alfa Romeo": [
+    { name: "Giulia", startYear: 2016, endYear: 2026 },
+    { name: "Giulia Quadrifoglio", startYear: 2016, endYear: 2026 },
+    { name: "Stelvio", startYear: 2017, endYear: 2026 },
+    { name: "Stelvio Quadrifoglio", startYear: 2017, endYear: 2026 },
+    { name: "Tonale", startYear: 2023, endYear: 2026 },
+    { name: "Junior (EV)", startYear: 2025, endYear: 2026 },
+    { name: "Brera", startYear: 2005, endYear: 2010 },
+    { name: "Spider", startYear: 1995, endYear: 2010 },
+    { name: "147", startYear: 2001, endYear: 2010 },
+    { name: "159", startYear: 2005, endYear: 2012 },
+    { name: "MiTo", startYear: 2009, endYear: 2019 },
   ],
-  GWM: [
-    { name: "Haval H6", startYear: 2023, endYear: 2026 },
-    { name: "Ora 03", startYear: 2023, endYear: 2026 }
+
+  Maserati: [
+    { name: "Ghibli", startYear: 2013, endYear: 2024 },
+    { name: "Levante", startYear: 2016, endYear: 2026 },
+    { name: "GranTurismo", startYear: 2007, endYear: 2026 },
+    { name: "GranCabrio", startYear: 2009, endYear: 2015 },
+    { name: "Quattroporte", startYear: 2003, endYear: 2025 },
+    { name: "Grecale", startYear: 2022, endYear: 2026 },
   ],
-  RAM: [
-    { name: "Rampage", startYear: 2023, endYear: 2026 },
-    { name: "1500", startYear: 2021, endYear: 2026 },
-    { name: "2500", startYear: 2005, endYear: 2026 },
-    { name: "3500", startYear: 2022, endYear: 2026 },
-    { name: "Classic", startYear: 2022, endYear: 2023 }
+
+  McLaren: [
+    { name: "GT", startYear: 2019, endYear: 2024 },
+    { name: "Artura (PHEV)", startYear: 2022, endYear: 2026 },
+    { name: "750S", startYear: 2023, endYear: 2026 },
+    { name: "720S", startYear: 2017, endYear: 2023 },
+    { name: "570S", startYear: 2015, endYear: 2022 },
+    { name: "600LT", startYear: 2018, endYear: 2020 },
   ],
+
+  Bentley: [
+    { name: "Bentayga", startYear: 2016, endYear: 2026 },
+    { name: "Continental GT", startYear: 2003, endYear: 2026 },
+    { name: "Flying Spur", startYear: 2005, endYear: 2026 },
+    { name: "Bacalar", startYear: 2021, endYear: 2023 },
+  ],
+
+  "Rolls-Royce": [
+    { name: "Ghost", startYear: 2009, endYear: 2026 },
+    { name: "Wraith", startYear: 2013, endYear: 2023 },
+    { name: "Dawn", startYear: 2016, endYear: 2023 },
+    { name: "Cullinan", startYear: 2018, endYear: 2026 },
+    { name: "Spectre (EV)", startYear: 2024, endYear: 2026 },
+    { name: "Phantom", startYear: 2003, endYear: 2026 },
+  ],
+
+  // ══════════════════════════════════
+  //  NORTE-AMERICANAS
+  // ══════════════════════════════════
+
+  Dodge: [
+    { name: "Durango", startYear: 2000, endYear: 2026 },
+    { name: "Challenger", startYear: 2008, endYear: 2024 },
+    { name: "Charger (EV)", startYear: 2025, endYear: 2026 },
+    { name: "Journey", startYear: 2009, endYear: 2020 },
+    { name: "Caliber", startYear: 2007, endYear: 2012 },
+    { name: "Dart", startYear: 2012, endYear: 2016 },
+    { name: "Viper", startYear: 2003, endYear: 2017 },
+  ],
+
+  Chrysler: [
+    { name: "300", startYear: 2004, endYear: 2023 },
+    { name: "300C", startYear: 2004, endYear: 2023 },
+    { name: "Town & Country", startYear: 1995, endYear: 2016 },
+    { name: "Pacifica", startYear: 2017, endYear: 2026 },
+    { name: "Voyager", startYear: 2001, endYear: 2024 },
+  ],
+
+  Cadillac: [
+    { name: "Escalade", startYear: 2000, endYear: 2026 },
+    { name: "XT5", startYear: 2017, endYear: 2026 },
+    { name: "XT6", startYear: 2020, endYear: 2026 },
+    { name: "CT5", startYear: 2020, endYear: 2026 },
+    { name: "Lyriq (EV)", startYear: 2023, endYear: 2026 },
+    { name: "Celestiq (EV)", startYear: 2024, endYear: 2026 },
+    { name: "CTS", startYear: 2003, endYear: 2019 },
+    { name: "SRX", startYear: 2004, endYear: 2016 },
+  ],
+
+  Lincoln: [
+    { name: "Navigator", startYear: 1998, endYear: 2026 },
+    { name: "Aviator", startYear: 2020, endYear: 2026 },
+    { name: "Corsair", startYear: 2020, endYear: 2026 },
+    { name: "Nautilus", startYear: 2019, endYear: 2026 },
+    { name: "MKZ", startYear: 2007, endYear: 2021 },
+    { name: "Continental", startYear: 2017, endYear: 2020 },
+  ],
+
   Tesla: [
     { name: "Model 3", startYear: 2017, endYear: 2026 },
+    { name: "Model 3 Highland", startYear: 2024, endYear: 2026 },
     { name: "Model Y", startYear: 2020, endYear: 2026 },
     { name: "Model S", startYear: 2012, endYear: 2026 },
     { name: "Model X", startYear: 2015, endYear: 2026 },
-    { name: "Cybertruck", startYear: 2024, endYear: 2026 }
+    { name: "Cybertruck", startYear: 2024, endYear: 2026 },
+    { name: "Semi", startYear: 2024, endYear: 2026 },
+    { name: "Roadster", startYear: 2025, endYear: 2026 },
   ],
-  Porsche: [
-    { name: "911 Carrera", startYear: 1997, endYear: 2026 },
-    { name: "Boxster / Cayman (718)", startYear: 1996, endYear: 2026 },
-    { name: "Cayenne", startYear: 2002, endYear: 2026 },
-    { name: "Macan", startYear: 2014, endYear: 2026 },
-    { name: "Panamera", startYear: 2009, endYear: 2026 },
-    { name: "Taycan", startYear: 2020, endYear: 2026 }
+
+  Rivian: [
+    { name: "R1T (Pickup)", startYear: 2022, endYear: 2026 },
+    { name: "R1S (SUV)", startYear: 2022, endYear: 2026 },
+    { name: "R2", startYear: 2026, endYear: 2026 },
   ],
-  Lexus: [
-    { name: "UX", startYear: 2019, endYear: 2026 },
-    { name: "NX", startYear: 2015, endYear: 2026 },
-    { name: "RX", startYear: 2000, endYear: 2026 },
-    { name: "ES", startYear: 1995, endYear: 2026 },
-    { name: "LS", startYear: 1995, endYear: 2026 }
+
+  // ══════════════════════════════════
+  //  EUROPEUS ADICIONAIS
+  // ══════════════════════════════════
+
+  MINI: [
+    { name: "Cooper 3P", startYear: 2001, endYear: 2026 },
+    { name: "Cooper 5P", startYear: 2014, endYear: 2026 },
+    { name: "Cooper S", startYear: 2001, endYear: 2026 },
+    { name: "Cooper SE (EV)", startYear: 2020, endYear: 2026 },
+    { name: "Countryman", startYear: 2010, endYear: 2026 },
+    { name: "Countryman E (EV)", startYear: 2024, endYear: 2026 },
+    { name: "Clubman", startYear: 2008, endYear: 2024 },
+    { name: "Paceman", startYear: 2012, endYear: 2016 },
+    { name: "Aceman (EV)", startYear: 2025, endYear: 2026 },
   ],
-  Jaguar: [
-    { name: "F-Pace", startYear: 2016, endYear: 2026 },
-    { name: "E-Pace", startYear: 2017, endYear: 2026 },
-    { name: "I-Pace", startYear: 2018, endYear: 2026 },
-    { name: "XE", startYear: 2015, endYear: 2024 },
-    { name: "XF", startYear: 2008, endYear: 2024 }
+
+  Skoda: [
+    { name: "Fabia", startYear: 1999, endYear: 2026 },
+    { name: "Scala", startYear: 2019, endYear: 2026 },
+    { name: "Octavia", startYear: 1996, endYear: 2026 },
+    { name: "Superb", startYear: 2002, endYear: 2026 },
+    { name: "Kamiq", startYear: 2019, endYear: 2026 },
+    { name: "Karoq", startYear: 2018, endYear: 2026 },
+    { name: "Kodiaq", startYear: 2017, endYear: 2026 },
+    { name: "Enyaq (EV)", startYear: 2021, endYear: 2026 },
   ],
-  Ferrari: [
-    { name: "Roma", startYear: 2020, endYear: 2026 },
-    { name: "F8 Tributo", startYear: 2019, endYear: 2023 },
-    { name: "SF90 Stradale", startYear: 2019, endYear: 2026 },
-    { name: "812 Superfast", startYear: 2017, endYear: 2024 },
-    { name: "Purosangue", startYear: 2023, endYear: 2026 }
+
+  Seat: [
+    { name: "Ibiza", startYear: 1995, endYear: 2026 },
+    { name: "Leon", startYear: 1999, endYear: 2026 },
+    { name: "Ateca", startYear: 2016, endYear: 2026 },
+    { name: "Arona", startYear: 2017, endYear: 2026 },
+    { name: "Tarraco", startYear: 2019, endYear: 2026 },
+    { name: "Mii Electric (EV)", startYear: 2020, endYear: 2023 },
   ],
-  Lamborghini: [
-    { name: "Urus", startYear: 2018, endYear: 2026 },
-    { name: "Huracán", startYear: 2014, endYear: 2024 },
-    { name: "Aventador", startYear: 2011, endYear: 2022 },
-    { name: "Revuelto", startYear: 2023, endYear: 2026 }
+
+  "Aston Martin": [
+    { name: "Vantage", startYear: 2006, endYear: 2026 },
+    { name: "DB11", startYear: 2016, endYear: 2023 },
+    { name: "DB12", startYear: 2023, endYear: 2026 },
+    { name: "DBX", startYear: 2020, endYear: 2026 },
+    { name: "DBX707", startYear: 2022, endYear: 2026 },
+    { name: "DBS Superleggera", startYear: 2018, endYear: 2023 },
   ],
-  Omoda: [
-    { name: "Omoda 5", startYear: 2024, endYear: 2026 },
-    { name: "Omoda E5 (100% Elétrico)", startYear: 2024, endYear: 2026 },
-    { name: "Omoda 7", startYear: 2024, endYear: 2026 },
-    { name: "Omoda 4", startYear: 2025, endYear: 2026 }
-  ]
+
+  DS: [
+    { name: "DS 3", startYear: 2019, endYear: 2026 },
+    { name: "DS 3 E-Tense (EV)", startYear: 2020, endYear: 2026 },
+    { name: "DS 4", startYear: 2021, endYear: 2026 },
+    { name: "DS 7 Crossback", startYear: 2018, endYear: 2026 },
+    { name: "DS 9", startYear: 2021, endYear: 2026 },
+  ],
+
+  // ══════════════════════════════════
+  //  ASIÁTICOS ADICIONAIS
+  // ══════════════════════════════════
+
+  Acura: [
+    { name: "MDX", startYear: 2001, endYear: 2026 },
+    { name: "RDX", startYear: 2006, endYear: 2026 },
+    { name: "TLX", startYear: 2015, endYear: 2026 },
+    { name: "Integra", startYear: 2022, endYear: 2026 },
+    { name: "ZDX (EV)", startYear: 2024, endYear: 2026 },
+  ],
+
+  Infiniti: [
+    { name: "Q50", startYear: 2014, endYear: 2026 },
+    { name: "Q60", startYear: 2016, endYear: 2024 },
+    { name: "QX50", startYear: 2014, endYear: 2026 },
+    { name: "QX55", startYear: 2021, endYear: 2026 },
+    { name: "QX60", startYear: 2013, endYear: 2026 },
+    { name: "QX80", startYear: 2013, endYear: 2026 },
+  ],
+
+  Genesis: [
+    { name: "G70", startYear: 2019, endYear: 2026 },
+    { name: "G80", startYear: 2017, endYear: 2026 },
+    { name: "G90", startYear: 2017, endYear: 2026 },
+    { name: "GV70", startYear: 2021, endYear: 2026 },
+    { name: "GV80", startYear: 2021, endYear: 2026 },
+    { name: "Electrified G80 (EV)", startYear: 2022, endYear: 2026 },
+    { name: "Electrified GV70 (EV)", startYear: 2022, endYear: 2026 },
+  ],
+
+  "MG Motor": [
+    { name: "ZS", startYear: 2020, endYear: 2026 },
+    { name: "ZS EV", startYear: 2022, endYear: 2026 },
+    { name: "HS", startYear: 2020, endYear: 2026 },
+    { name: "RX5", startYear: 2021, endYear: 2026 },
+    { name: "4 (EV)", startYear: 2023, endYear: 2026 },
+    { name: "Cyberster (EV)", startYear: 2024, endYear: 2026 },
+    { name: "3", startYear: 2024, endYear: 2026 },
+  ],
+
+  Geely: [
+    { name: "Coolray", startYear: 2021, endYear: 2026 },
+    { name: "Tugella", startYear: 2021, endYear: 2024 },
+    { name: "Xingyuan (EV)", startYear: 2024, endYear: 2026 },
+    { name: "Galaxy L6", startYear: 2024, endYear: 2026 },
+  ],
+
+  "Changan": [
+    { name: "Uni-T", startYear: 2021, endYear: 2026 },
+    { name: "Uni-K", startYear: 2022, endYear: 2026 },
+    { name: "Uni-V", startYear: 2022, endYear: 2026 },
+    { name: "Hunter (Pickup)", startYear: 2024, endYear: 2026 },
+  ],
+
+  Zeekr: [
+    { name: "001 (EV)", startYear: 2023, endYear: 2026 },
+    { name: "007 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "X (EV)", startYear: 2023, endYear: 2026 },
+  ],
+
+  Nio: [
+    { name: "ET5", startYear: 2022, endYear: 2026 },
+    { name: "ET7", startYear: 2022, endYear: 2026 },
+    { name: "ES6", startYear: 2019, endYear: 2026 },
+    { name: "ES8", startYear: 2019, endYear: 2026 },
+    { name: "EC6", startYear: 2020, endYear: 2026 },
+    { name: "EL6", startYear: 2023, endYear: 2026 },
+  ],
+
+  Xpeng: [
+    { name: "P7", startYear: 2021, endYear: 2026 },
+    { name: "G6", startYear: 2023, endYear: 2026 },
+    { name: "G9", startYear: 2022, endYear: 2026 },
+    { name: "X9", startYear: 2024, endYear: 2026 },
+  ],
+
+  "Li Auto": [
+    { name: "L6", startYear: 2024, endYear: 2026 },
+    { name: "L7", startYear: 2023, endYear: 2026 },
+    { name: "L8", startYear: 2022, endYear: 2026 },
+    { name: "L9", startYear: 2022, endYear: 2026 },
+    { name: "MEGA (EV)", startYear: 2024, endYear: 2026 },
+  ],
 };
 
 export const CHECKOUT_URLS = {

@@ -39,7 +39,7 @@ const UPSELL_ITEMS = [
 export default function Upsell({ vehicle, kit, onProceed, onBack }) {
   const [selectedItems, setSelectedItems] = useState({});
 
-  const kitPrice = kit === 'basico' ? 72.90 : 124.90;
+  const kitPrice = kit === 'basico' ? 87.90 : 137.90;
   const kitName = kit === 'basico' ? 'Kit Essencial Cabine' : 'Kit Premium Completo';
   
   const toggleItem = (itemId) => {

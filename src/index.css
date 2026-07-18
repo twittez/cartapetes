@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 html {
-  scroll-behavior: smooth;
+  /* scroll-behavior gerenciado via JS para evitar scroll automático ao abrir a página */
+  scroll-behavior: auto;
 }
 
 body {
