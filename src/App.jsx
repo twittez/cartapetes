@@ -820,6 +820,39 @@ export default function App() {
         </div>
       </section>
 
+      {/* 8.5 Store Location / Map Section */}
+      <section className="bg-white py-12 border-t border-gray-150">
+        <div className="max-w-md mx-auto px-4">
+          <div className="bg-[#0f172a] rounded-3xl overflow-hidden shadow-xl border border-gray-800">
+            {/* Interactive Map Iframe */}
+            <div className="relative h-[300px] w-full bg-[#0f172a]">
+              <iframe 
+                src="https://maps.google.com/maps?q=Rua%20Ibitirama%20486%20Vila%20Prudente%20S%C3%A3o%20Paulo%20SP%2003134-001&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                width="100%" 
+                height="100%" 
+                style={{ border: 0 }} 
+                allowFullScreen="" 
+                loading="lazy" 
+                referrerPolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+
+            {/* Address Footer / Info */}
+            <div className="bg-[#0f172a] p-5 text-xs text-gray-400 space-y-4">
+              <p className="leading-relaxed text-gray-300">Rua Ibitirama, 486 · Vila Prudente · São Paulo - SP · CEP 03134-001</p>
+              <a 
+                href="https://maps.google.com/maps?q=Rua%20Ibitirama%20486%20Vila%20Prudente%20S%C3%A3o%20Paulo%20SP%2003134-001"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full bg-white hover:bg-gray-150 text-gray-900 font-bold py-3 rounded-xl text-center transition duration-150"
+              >
+                Como Chegar
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 9. Final CTA Selection Block */}
       <section className="bg-gray-50/50 py-16 border-t border-gray-100">
         <div className="max-w-md mx-auto px-4">
