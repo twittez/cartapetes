@@ -1,11 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { trackMetaEvent, generateEventId, getHashedUserData, getCookie } from '../utils/metaPixel';
 import { supabase } from '../utils/supabase';
+import { tracker } from '../utils/tracker';
 
 export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
   const [paymentMethod, setPaymentMethod] = useState('pix'); // 'pix', 'card'
   const [showMobileSummary, setShowMobileSummary] = useState(false);
+
+  // Sync step changes to tracker
+  useEffect(() => {
+    let stage = 'Checkout';
+    if (step === 1) stage = 'Identificação';
+    else if (step === 2) stage = 'Endereço';
+    else if (step === 3) stage = 'Pagamento';
+    else if (step === 4) stage = 'Obrigado';
+    tracker.updateStage(stage);
+  }, [step]);
   
   // Form States
   const [formData, setFormData] = useState({
@@ -29,6 +40,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   });
 
   const [formErrors, setFormErrors] = useState({});
+
+  // Sync customer name and email to active tracker session
+  useEffect(() => {
+    if (formData.nome || formData.email) {
+      tracker.updateLeadInfo(formData.nome, formData.email);
+    }
+  }, [formData.nome, formData.email]);
+
   const [shippingMethod, setShippingMethod] = useState('pac'); // 'pac', 'sedex', 'full'
   const [perfumeUpsell, setPerfumeUpsell] = useState(false);
 

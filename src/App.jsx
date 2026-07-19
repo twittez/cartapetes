@@ -7,6 +7,7 @@ import Ticker from './components/Ticker';
 import AdminPanel from './components/AdminPanel';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
+import { tracker } from './utils/tracker';
 
 export default function App() {
   const isLinkAdmin = window.location.pathname === '/admin' || window.location.pathname === '/painel';
@@ -29,6 +30,15 @@ export default function App() {
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [locationText, setLocationText] = useState('sua região');
 
+  // Sync state stage to tracker
+  useEffect(() => {
+    if (showCheckout) {
+      tracker.updateStage('Checkout');
+    } else if (tracker.initialized) {
+      tracker.updateStage('Loja');
+    }
+  }, [showCheckout]);
+
   // Garante que a página sempre inicia no topo (sem scroll para âncoras ou posição anterior)
   useEffect(() => {
     if ('scrollRestoration' in window.history) {
@@ -39,6 +49,7 @@ export default function App() {
 
   // Rastreia o evento ViewContent no carregamento inicial da Landing Page e busca localização do lead
   useEffect(() => {
+    tracker.init('Loja');
     const eventId = generateEventId();
     trackMetaEvent('ViewContent', eventId, {
       content_name: 'Tapete Bandeja Premium Sob Medida + Lixeira de Brinde',
