@@ -169,11 +169,16 @@ exports.handler = async (event, context) => {
     const pixelId = '1932684814101405';
     const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
 
+    // event_id de deduplicação: prioridade ao eventId do tracking (gerado no front no InitiateCheckout),
+    // depois usa o transactionId como chave única estável para evitar que 2 chamadas (webhook + polling)
+    // disparem 2 Purchase no Meta para o mesmo pedido.
+    const deduplicationId = eventId || (transactionId ? `purchase_${transactionId}` : ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36)));
+
     const capiEvent = {
       event_name: 'Purchase',
       event_time: Math.floor(Date.now() / 1000),
-      event_id: eventId || ('evt_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36)),
-      event_source_url: 'https://cartapetesautomotivos.lovable.app/obrigado.html',
+      event_id: deduplicationId,
+      event_source_url: 'https://cartapetes.netlify.app/obrigado.html',
       action_source: 'website',
       user_data: mergedUserData,
       custom_data: customData
@@ -183,9 +188,9 @@ exports.handler = async (event, context) => {
       data: [capiEvent]
     };
 
-    console.log(`[WinnerPay Webhook] Enviando Conversão de Compra para o Meta Pixel ${pixelId} (Event ID: ${capiEvent.event_id})`);
+    console.log(`[WinnerPay Webhook] Enviando Purchase para Meta Pixel ${pixelId} (Event ID de dedup: ${capiEvent.event_id})`);
 
-    const response = await fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
+    const response = await fetch(`https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -195,6 +200,7 @@ exports.handler = async (event, context) => {
 
     const responseData = await response.json();
     console.log(`[WinnerPay Webhook] Resposta do Meta CAPI:`, responseData);
+
 
     return {
       statusCode: response.status,

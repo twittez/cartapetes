@@ -98,6 +98,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     if (!supabase) return;
 
     try {
+      const txId = transactionIdOverride || transactionId || '';
       const leadData = {
         nome: formData.nome,
         email: formData.email,
@@ -117,25 +118,52 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         final_price: finalPrice,
         payment_method: paymentMethod,
         status: status,
-        transaction_id: transactionIdOverride || transactionId || '',
+        transaction_id: txId,
         ...extraData
       };
 
-      console.log('[Supabase] Enviando lead para o banco...', leadData);
+      console.log('[Supabase] Salvando lead...', { status, txId });
 
-      const { data, error } = await supabase
+      // Se já existe um registro com esse transaction_id, apenas ATUALIZA o status.
+      // Evita duplicação quando o polling detecta pagamento e o webhook também dispara.
+      if (txId && (status === 'pago' || status === 'negado')) {
+        const { data: existing } = await supabase
+          .from('leads')
+          .select('id')
+          .eq('transaction_id', txId)
+          .maybeSingle();
+
+        if (existing) {
+          // Registro já existe → só atualiza o status
+          const { error } = await supabase
+            .from('leads')
+            .update({ status })
+            .eq('transaction_id', txId);
+
+          if (error) {
+            console.error('[Supabase] Erro ao atualizar status do lead:', error.message);
+          } else {
+            console.log(`[Supabase] Status do lead ${txId} atualizado para "${status}" ✓`);
+          }
+          return;
+        }
+      }
+
+      // Nenhum registro existente → INSERT normal
+      const { error } = await supabase
         .from('leads')
         .insert([leadData]);
 
       if (error) {
         console.error('[Supabase] Erro ao salvar lead:', error.message);
       } else {
-        console.log('[Supabase] Lead salvo com sucesso no banco.');
+        console.log('[Supabase] Lead inserido com sucesso no banco ✓');
       }
     } catch (err) {
       console.error('[Supabase] Erro na requisição Supabase:', err);
     }
   };
+
 
   // Testimonial carousel state
   const [testimonialIndex, setTestimonialIndex] = useState(0);
