@@ -55,6 +55,39 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // 1. Atualizar o status da transação no Supabase para 'pago'
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        console.log(`[WinnerPay Webhook] Atualizando transação ${transactionId} no Supabase...`);
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(transactionId);
+        
+        let error;
+        if (isUuid) {
+          const res = await supabase.from('leads').update({ status: 'pago' }).or(`id.eq.${transactionId},transaction_id.eq.${transactionId}`);
+          error = res.error;
+        } else {
+          const res = await supabase.from('leads').update({ status: 'pago' }).eq('transaction_id', transactionId);
+          error = res.error;
+        }
+
+        if (error) {
+          console.error('[WinnerPay Webhook] Erro ao salvar status pago no Supabase:', error.message);
+        } else {
+          console.log(`[WinnerPay Webhook] Transação ${transactionId} marcada como PAGO no Supabase ✓`);
+        }
+      } catch (dbErr) {
+        console.error('[WinnerPay Webhook] Falha ao conectar ao Supabase:', dbErr);
+      }
+    } else {
+      console.warn('[WinnerPay Webhook] Credenciais do Supabase não encontradas no ambiente.');
+    }
+
     // Extrai os dados do cliente e metadados de rastreamento do Meta
     const metadata = transaction.metadata || {};
     const tracking = metadata.tracking || {};
