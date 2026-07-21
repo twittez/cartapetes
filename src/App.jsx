@@ -838,7 +838,7 @@ export default function App() {
             {/* Interactive Map Iframe */}
             <div className="relative h-[300px] w-full bg-[#0f172a]">
               <iframe 
-                src="https://maps.google.com/maps?q=Rua%20Ibitirama%20486%20Vila%20Prudente%20S%C3%A3o%20Paulo%20SP%2003134-001&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                src="https://maps.google.com/maps?q=Avenida%20Cristiano%20Machado%208966%20Galp%C3%A3o%2001%2002%20e%2003%20Minasl%C3%A2ndia%20Belo%20Horizonte%20MG%2031812-112&t=&z=15&ie=UTF8&iwloc=&output=embed" 
                 width="100%" 
                 height="100%" 
                 style={{ border: 0 }} 
@@ -850,9 +850,9 @@ export default function App() {
 
             {/* Address Footer / Info */}
             <div className="bg-[#0f172a] p-5 text-xs text-gray-400 space-y-4">
-              <p className="leading-relaxed text-gray-300">Rua Ibitirama, 486 · Vila Prudente · São Paulo - SP · CEP 03134-001</p>
+              <p className="leading-relaxed text-gray-300">Avenida Cristiano Machado, 8966, Galpão 01, 02 e 03 · Minaslândia · Belo Horizonte - MG · CEP 31812-112</p>
               <a 
-                href="https://maps.google.com/maps?q=Rua%20Ibitirama%20486%20Vila%20Prudente%20S%C3%A3o%20Paulo%20SP%2003134-001"
+                href="https://maps.google.com/maps?q=Avenida%20Cristiano%20Machado%208966%20Galp%C3%A3o%2001%2002%20e%2003%20Minasl%C3%A2ndia%20Belo%20Horizonte%20MG%2031812-112"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full bg-white hover:bg-gray-150 text-gray-900 font-bold py-3 rounded-xl text-center transition duration-150"
@@ -919,8 +919,8 @@ export default function App() {
 
         <div className="text-center text-xs text-gray-400 mt-6 px-4 space-y-3">
           <div>CarTapetes Ltda.</div>
-          <div>CNPJ: 35.824.695/0001-00</div>
-          <div>Endereço: Rua Ibitirama 486 Vila Prudente São Paulo SP 03134-001</div>
+          <div>CNPJ: 15.807.911/0001-00</div>
+          <div>Endereço: Avenida Cristiano Machado 8966 Galpão 01, 02 e 03 Minaslândia Belo Horizonte MG 31812-112</div>
           
           <div className="flex items-center justify-center gap-2 text-gray-300 hover:text-white transition duration-150">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

@@ -1752,7 +1752,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
           <div className="space-y-1 mt-6 text-slate-500 text-[10px]">
             <div className="font-bold text-slate-700 text-xs">CarTapetes Ltda.</div>
-            <div>CNPJ: 35.824.695/0001-00 | Endereço: Rua Ibitirama 486 Vila Prudente São Paulo SP 03134-001</div>
+            <div>CNPJ: 15.807.911/0001-00 | Endereço: Avenida Cristiano Machado 8966 Galpão 01, 02 e 03 Minaslândia Belo Horizonte MG 31812-112</div>
             <div className="text-slate-400 mt-2">© 2026 CarTapetes. Todos os direitos reservados.</div>
           </div>
         </div>
