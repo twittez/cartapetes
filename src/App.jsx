@@ -4,16 +4,62 @@ import VehicleSelector from './components/VehicleSelector';
 import Accordion from './components/Accordion';
 import Checkout from './components/Checkout';
 import Ticker from './components/Ticker';
-import AdminPanel from './components/AdminPanel';
+import ThankYouUpsellPage from './components/ThankYouUpsellPage';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
 import { tracker } from './utils/tracker';
 
 export default function App() {
-  const isLinkAdmin = window.location.pathname === '/admin' || window.location.pathname === '/painel';
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [selectedVehicle, setSelectedVehicle] = useState('');
+  const [selectedKit, setSelectedKit] = useState('premium'); // 'basico' or 'premium'
 
-  if (isLinkAdmin) {
+  // Navegação manual SPA leve
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
+  // Suporte aos botões Voltar/Avançar do navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Restaura dados do localStorage no carregamento inicial
+  useEffect(() => {
+    const savedVehicle = localStorage.getItem('cartapetes_selected_vehicle');
+    const savedKit = localStorage.getItem('cartapetes_selected_kit');
+    if (savedVehicle) setSelectedVehicle(savedVehicle);
+    if (savedKit) setSelectedKit(savedKit);
+  }, []);
+
+  // Persiste dados no localStorage
+  useEffect(() => {
+    if (selectedVehicle) {
+      localStorage.setItem('cartapetes_selected_vehicle', selectedVehicle);
+    }
+  }, [selectedVehicle]);
+
+  useEffect(() => {
+    if (selectedKit) {
+      localStorage.setItem('cartapetes_selected_kit', selectedKit);
+    }
+  }, [selectedKit]);
+
+  // Restaura veículo com fallback seguro
+  const effectiveVehicle = selectedVehicle || localStorage.getItem('cartapetes_selected_vehicle') || 'Carro';
+
+  if (currentPath === '/admin' || currentPath === '/painel') {
     return <AdminPanel />;
+  }
+
+  if (currentPath === '/obrigado' || currentPath === '/obrigado.html') {
+    return <ThankYouUpsellPage />;
   }
 
   const images = [
@@ -24,20 +70,17 @@ export default function App() {
   ];
 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const [selectedKit, setSelectedKit] = useState('premium'); // 'basico' or 'premium'
-  const [showCheckout, setShowCheckout] = useState(false);
   const [addedUpsells, setAddedUpsells] = useState([]);
-  const [selectedVehicle, setSelectedVehicle] = useState('');
   const [locationText, setLocationText] = useState('sua região');
 
   // Sync state stage to tracker
   useEffect(() => {
-    if (showCheckout) {
+    if (currentPath === '/checkout') {
       tracker.updateStage('Checkout');
     } else if (tracker.initialized) {
       tracker.updateStage('Loja');
     }
-  }, [showCheckout]);
+  }, [currentPath]);
 
   // Garante que a página sempre inicia no topo (sem scroll para âncoras ou posição anterior)
   useEffect(() => {
@@ -101,15 +144,15 @@ export default function App() {
   };
 
 
-  if (showCheckout) {
+  if (currentPath === '/checkout') {
     return (
       <Checkout
-        vehicle={selectedVehicle}
+        vehicle={effectiveVehicle}
         kit={selectedKit}
         upsellItems={addedUpsells}
         onClose={() => {
-          setShowCheckout(false);
           setAddedUpsells([]);
+          navigateTo('/');
         }}
       />
     );
@@ -243,8 +286,10 @@ export default function App() {
                   id="cta-hero"
                   buyUrl={CHECKOUT_URLS[selectedKit]}
                   onCheckout={(vehicleInfo) => {
+                    localStorage.removeItem('cartapetes_is_upsell_only');
+                    localStorage.removeItem('cartapetes_added_upsells');
                     setSelectedVehicle(vehicleInfo);
-                    setShowCheckout(true);
+                    navigateTo('/checkout');
                   }}
                 />
                 {/* Trust badges */}
@@ -877,8 +922,10 @@ export default function App() {
               id="cta-final" 
               buyUrl={CHECKOUT_URLS.premium} 
               onCheckout={(vehicleInfo) => {
+                localStorage.removeItem('cartapetes_is_upsell_only');
+                localStorage.removeItem('cartapetes_added_upsells');
                 setSelectedVehicle(vehicleInfo);
-                setShowCheckout(true);
+                navigateTo('/checkout');
               }}
             />
           </div>

@@ -7,6 +7,21 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
   const [paymentMethod, setPaymentMethod] = useState('pix'); // 'pix', 'card'
   const [showMobileSummary, setShowMobileSummary] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutos (600s)
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const interval = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timeLeft]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Sync step changes to tracker
   useEffect(() => {
@@ -40,6 +55,33 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [extraUpsells, setExtraUpsells] = useState([]);
+
+  // Restaura dados do lead e upsells adicionados do localStorage
+  useEffect(() => {
+    try {
+      const savedLeadStr = localStorage.getItem('cartapetes_purchase_data');
+      if (savedLeadStr) {
+        const savedLead = JSON.parse(savedLeadStr);
+        setFormData(prev => ({
+          ...prev,
+          nome: savedLead.nome || prev.nome,
+          email: savedLead.email || prev.email,
+          telefone: savedLead.telefone || prev.telefone,
+          cep: savedLead.cep || prev.cep,
+          cidade: savedLead.cidade || prev.cidade,
+          estado: savedLead.estado || prev.estado
+        }));
+      }
+
+      const savedUpsellsStr = localStorage.getItem('cartapetes_added_upsells');
+      if (savedUpsellsStr) {
+        setExtraUpsells(JSON.parse(savedUpsellsStr));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   // Sync customer name and email to active tracker session
   useEffect(() => {
@@ -51,16 +93,22 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [shippingMethod, setShippingMethod] = useState('pac'); // 'pac', 'sedex', 'full'
   const [perfumeUpsell, setPerfumeUpsell] = useState(false);
 
+  // Verifica se é uma compra exclusiva de Acessórios Pós-Pagamento
+  const isUpsellOnly = localStorage.getItem('cartapetes_is_upsell_only') === 'true' && extraUpsells.length > 0;
+
+  // Combine initial upsell items with any added from the post-purchase page
+  const allUpsellItems = isUpsellOnly ? extraUpsells : [...upsellItems, ...extraUpsells];
+
   // Pricing calculations
-  const originalPrice = kit === 'basico' ? 197.00 : 297.00;
-  const basePrice = kit === 'basico' ? 87.90 : 137.90;
-  const upsellTotal = upsellItems.reduce((sum, item) => sum + item.price, 0) + (perfumeUpsell ? 14.90 : 0);
+  const originalPrice = isUpsellOnly ? 0 : (kit === 'basico' ? 197.00 : 297.00);
+  const basePrice = isUpsellOnly ? 0 : (kit === 'basico' ? 87.90 : 137.90);
+  const upsellTotal = allUpsellItems.reduce((sum, item) => sum + item.price, 0) + (perfumeUpsell ? 14.90 : 0);
   const subtotal = basePrice + upsellTotal;
-  const shippingCost = shippingMethod === 'pac' ? 0 : shippingMethod === 'sedex' ? 12.90 : 18.90;
+  const shippingCost = isUpsellOnly ? 0 : (shippingMethod === 'pac' ? 0 : shippingMethod === 'sedex' ? 12.90 : 18.90);
   const isPix = paymentMethod === 'pix';
   const finalPrice = (isPix ? subtotal * 0.95 : subtotal) + shippingCost; // 5% discount on PIX
   
-  const originalUpsellTotal = upsellItems.reduce((sum, item) => {
+  const originalUpsellTotal = allUpsellItems.reduce((sum, item) => {
     if (item.id === 'organizador') return sum + 89.90;
     if (item.id === 'aromatizador') return sum + 29.90;
     if (item.id === 'kit_limpeza') return sum + 39.90;
@@ -315,11 +363,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                 }));
 
                 // Limpa dados temporários do Pix pendente
-                localStorage.removeItem('cartapetes_pending_purchase_data');
-
                 saveLeadToSupabase('pago');
-
-                window.location.href = '/obrigado.html';
+                window.location.href = '/obrigado';
               }
             }
           }
@@ -332,6 +377,38 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       if (intervalId) clearInterval(intervalId);
     };
   }, [step, paymentMethod, transactionId, pixPaid]);
+
+  const handleManualPaymentConfirm = () => {
+    setPixPaid(true);
+    let purchaseEventId = generateEventId();
+    try {
+      const pendingDataStr = localStorage.getItem('cartapetes_pending_purchase_data');
+      if (pendingDataStr) {
+        const pendingData = JSON.parse(pendingDataStr);
+        if (pendingData.eventId) {
+          purchaseEventId = pendingData.eventId;
+        }
+      }
+    } catch (e) {}
+
+    localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
+      value: finalPrice,
+      currency: 'BRL',
+      eventId: purchaseEventId,
+      kit: kit,
+      upsellItems: upsellItems,
+      nome: formData.nome,
+      email: formData.email,
+      telefone: formData.telefone,
+      cep: formData.cep,
+      cidade: formData.cidade,
+      estado: formData.estado
+    }));
+
+    localStorage.removeItem('cartapetes_pending_purchase_data');
+    saveLeadToSupabase('pago');
+    window.location.href = '/obrigado';
+  };
 
   const handleCreatePix = async () => {
     setIsApiLoading(true);
@@ -669,6 +746,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         </div>
       </div>
 
+
       {/* Mobile order summary accordion */}
       <div className="lg:hidden bg-[#f3f4f6] border-b border-[#e2e8f0]">
         <button
@@ -687,26 +765,40 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         {showMobileSummary && (
           <div className="p-4 bg-white border-t border-[#e2e8f0] space-y-4 text-xs animate-fadeIn">
             <div className="flex gap-3">
-              <div className="w-12 h-12 bg-slate-50 rounded border border-[#e2e8f0] flex-shrink-0">
-                <img src="/produto-1.jpg" alt="Produto" className="w-full h-full object-cover" />
+              <div className="w-12 h-12 bg-white rounded border border-[#e2e8f0] flex-shrink-0 p-1 flex items-center justify-center">
+                <img 
+                  src={isUpsellOnly ? (allUpsellItems[0]?.image || '/produto-1.jpg') : '/produto-1.jpg'} 
+                  alt="Produto" 
+                  className="max-w-full max-h-full object-contain" 
+                />
               </div>
               <div className="flex-1">
-                <div className="font-bold text-slate-800 line-clamp-1">
-                  Tapete Bandeja Premium + Lixeira de Brinde
+                <div className="font-bold text-slate-800 line-clamp-2 leading-tight">
+                  {isUpsellOnly 
+                    ? (allUpsellItems.length === 1 ? allUpsellItems[0]?.title : `${allUpsellItems[0]?.title} (+${allUpsellItems.length - 1} item)`)
+                    : 'Tapete Bandeja Premium + Lixeira de Brinde'}
                 </div>
-                <div className="text-slate-400 mt-0.5 font-mono text-[10px]">
-                  Veículo: <span className="text-slate-700 font-bold">{vehicle}</span>
-                </div>
-                <div className="text-slate-400 font-mono text-[10px]">
-                  Kit: <span className="text-slate-700 font-bold">{kit === 'basico' ? 'Kit Essencial Cabine' : 'Kit Premium Completo'}</span>
-                </div>
+                {isUpsellOnly ? (
+                  <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold mt-1 inline-block">
+                    ✓ Tapete Bandeja Principal (Já Pago - Embalando)
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-slate-400 mt-0.5 font-mono text-[10px]">
+                      Veículo: <span className="text-slate-700 font-bold">{vehicle}</span>
+                    </div>
+                    <div className="text-slate-400 font-mono text-[10px]">
+                      Kit: <span className="text-slate-700 font-bold">{kit === 'basico' ? 'Kit Essencial Cabine' : 'Kit Premium Completo'}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             
-            {(upsellItems.length > 0 || perfumeUpsell) && (
+            {(allUpsellItems.length > 0 || perfumeUpsell) && (
               <div className="space-y-1 text-slate-500 pb-2 border-b border-[#e2e8f0]">
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Acessórios</div>
-                {upsellItems.map(item => (
+                {allUpsellItems.map(item => (
                   <div key={item.id} className="flex justify-between">
                     <span>✚ {item.title}</span>
                     <span>R$ {item.price.toFixed(2).replace('.', ',')}</span>
@@ -899,6 +991,11 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                   >
                     Ir Para Entrega
                   </button>
+
+                  <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400 font-semibold mt-3 select-none">
+                    <span className="flex items-center gap-1">🔒 Conexão Segura</span>
+                    <span className="flex items-center gap-1">🛡️ Dados Protegidos (LGPD)</span>
+                  </div>
                 </form>
               ) : (
                 <div className="flex justify-between items-start text-xs animate-fadeIn">
@@ -1129,6 +1226,11 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                     >
                       Ir Para Pagamento
                     </button>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400 font-semibold mt-3 select-none">
+                    <span className="flex items-center gap-1">🔒 Envio Rastreável</span>
+                    <span className="flex items-center gap-1">🛡️ Entrega Segura pelos Correios</span>
                   </div>
                 </form>
               ) : (
@@ -1400,6 +1502,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                       )}
                     </button>
                   </div>
+
+                  <div className="mt-4 p-3 bg-emerald-50/50 rounded-[0.5rem] border border-emerald-100 flex items-center justify-center gap-2 select-none text-[10px] text-emerald-800 font-bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600 flex-shrink-0">
+                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <span>Ambiente 100% Criptografado e Seguro · Processado pelo Mercado Pago</span>
+                  </div>
                 </form>
               ) : (
                 <div className="text-slate-400 text-xs font-semibold">
@@ -1455,12 +1565,21 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                       Abra o app do seu banco, vá na seção **Pix** e selecione **Pix Copia e Cola**. A aprovação leva segundos!
                     </div>
 
-                    <button
-                      onClick={onClose}
-                      className="w-full max-w-xs bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-[0.5rem] text-xs uppercase tracking-wide transition cursor-pointer"
-                    >
-                      Voltar para a Loja
-                    </button>
+                    <div className="space-y-2 max-w-xs mx-auto pt-2">
+                      <button
+                        onClick={handleManualPaymentConfirm}
+                        className="w-full bg-[#3bae8a] hover:bg-[#2d8f70] text-white font-extrabold py-3.5 rounded-[0.5rem] text-xs uppercase tracking-wide transition cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                      >
+                        <span>✓</span> Já Paguei / Confirmar Pagamento
+                      </button>
+
+                      <button
+                        onClick={onClose}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-[0.5rem] text-xs uppercase tracking-wide transition cursor-pointer"
+                      >
+                        Voltar para a Loja
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-6 py-4">
@@ -1481,10 +1600,10 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                     </div>
 
                     <button
-                      onClick={onClose}
+                      onClick={() => window.location.href = '/obrigado'}
                       className="w-full max-w-xs bg-[#3bae8a] hover:bg-[#2d8f70] text-white font-extrabold py-3 rounded-[0.5rem] text-xs uppercase tracking-wide transition cursor-pointer"
                     >
-                      Voltar para a Loja
+                      Ver Minha Oferta de Pós-Compra 🚀
                     </button>
                   </div>
                 )}
@@ -1541,28 +1660,42 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
               {/* Product description row */}
               <div className="flex gap-3">
-                <div className="w-14 h-14 bg-slate-50 rounded border border-[#e2e8f0] flex-shrink-0">
-                  <img src="/produto-1.jpg" alt="Produto" className="w-full h-full object-cover" />
+                <div className="w-14 h-14 bg-white rounded border border-[#e2e8f0] flex-shrink-0 p-1 flex items-center justify-center">
+                  <img 
+                    src={isUpsellOnly ? (allUpsellItems[0]?.image || '/produto-1.jpg') : '/produto-1.jpg'} 
+                    alt="Produto" 
+                    className="max-w-full max-h-full object-contain" 
+                  />
                 </div>
                 <div className="flex-1 text-xs">
-                  <div className="font-bold text-slate-800 leading-normal line-clamp-2">
-                    Tapete Bandeja Premium 100% Sob Medida
+                  <div className="font-bold text-slate-800 leading-tight line-clamp-2">
+                    {isUpsellOnly 
+                      ? (allUpsellItems.length === 1 ? allUpsellItems[0]?.title : `${allUpsellItems[0]?.title} (+${allUpsellItems.length - 1} item)`)
+                      : 'Tapete Bandeja Premium 100% Sob Medida'}
                   </div>
-                  <div className="text-slate-400 mt-1 font-mono text-[10px]">
-                    Veículo: <span className="text-[#FF5A00] font-bold">{vehicle || 'Não selecionado'}</span>
-                  </div>
-                  <div className="text-slate-400 font-mono text-[10px]">
-                    Kit: <span className="text-slate-800 font-bold">{kit === 'basico' ? 'Kit Essencial Cabine' : 'Kit Premium Completo'}</span>
-                  </div>
+                  {isUpsellOnly ? (
+                    <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold mt-1 inline-block">
+                      ✓ Tapete Bandeja Principal (Já Pago - Embalando)
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-slate-400 mt-1 font-mono text-[10px]">
+                        Veículo: <span className="text-[#FF5A00] font-bold">{vehicle || 'Não selecionado'}</span>
+                      </div>
+                      <div className="text-slate-400 font-mono text-[10px]">
+                        Kit: <span className="text-slate-800 font-bold">{kit === 'basico' ? 'Kit Essencial Cabine' : 'Kit Premium Completo'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {(upsellItems.length > 0 || perfumeUpsell) && (
+              {(allUpsellItems.length > 0 || perfumeUpsell) && (
                 <>
                   <hr className="border-slate-100" />
                   <div className="space-y-2">
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Acessórios:</div>
-                    {upsellItems.map(item => (
+                    {allUpsellItems.map(item => (
                       <div key={item.id} className="flex justify-between items-center text-xs text-slate-600">
                         <span className="line-clamp-1 flex-1 pr-2">✚ {item.title}</span>
                         <span className="font-bold text-slate-800">R$ {item.price.toFixed(2).replace('.', ',')}</span>
@@ -1743,7 +1876,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
           </div>
 
           <div className="flex justify-center items-center mt-4 text-[#898792]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-lock mr-1.5 size-4 text-[#24bfa5]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-lock mr-1.5 size-4 text-[#24bfa5]">
               <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
