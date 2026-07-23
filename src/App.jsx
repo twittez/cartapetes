@@ -1,13 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import VehicleSelector from './components/VehicleSelector';
 import Accordion from './components/Accordion';
 import Checkout from './components/Checkout';
 import Ticker from './components/Ticker';
 import ThankYouUpsellPage from './components/ThankYouUpsellPage';
+import ReviewsSection from './components/ReviewsSection';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
 import { tracker } from './utils/tracker';
+
+// Recent purchase notifications
+const RECENT_BUYERS = [
+  { name: 'João C.', city: 'São Paulo', state: 'SP', car: 'Civic', time: '3 min' },
+  { name: 'Maria A.', city: 'Curitiba', state: 'PR', car: 'Corolla', time: '7 min' },
+  { name: 'Pedro S.', city: 'Rio de Janeiro', state: 'RJ', car: 'HB20', time: '11 min' },
+  { name: 'Ana R.', city: 'Belo Horizonte', state: 'MG', car: 'Tracker', time: '14 min' },
+  { name: 'Carlos T.', city: 'Porto Alegre', state: 'RS', car: 'Cronos', time: '18 min' },
+  { name: 'Fernanda L.', city: 'Fortaleza', state: 'CE', car: 'Kicks', time: '22 min' },
+  { name: 'Bruno M.', city: 'Brasília', state: 'DF', car: 'T-Cross', time: '27 min' },
+  { name: 'Carla V.', city: 'Manaus', state: 'AM', car: 'Pulse', time: '31 min' },
+];
+
+// Freight calculation by state
+function getFreightInfo(state) {
+  const fast = ['MG', 'SP', 'RJ', 'ES'];
+  const medium = ['PR', 'SC', 'RS', 'GO', 'MS', 'MT', 'DF', 'BA'];
+  if (fast.includes(state)) return { price: 'GRÁTIS', days: '2 a 4 dias úteis', color: 'text-emerald-600' };
+  if (medium.includes(state)) return { price: 'GRÁTIS', days: '4 a 7 dias úteis', color: 'text-emerald-600' };
+  return { price: 'GRÁTIS', days: '6 a 10 dias úteis', color: 'text-emerald-600' };
+}
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -72,6 +94,17 @@ export default function App() {
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [addedUpsells, setAddedUpsells] = useState([]);
   const [locationText, setLocationText] = useState('sua região');
+  const [freightInfo, setFreightInfo] = useState(null);
+  const [freightCity, setFreightCity] = useState('');
+  const [freightState, setFreightState] = useState('');
+  const [cepInput, setCepInput] = useState('');
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState('');
+  const [showSticky, setShowSticky] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [toastKey, setToastKey] = useState(0);
+  const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 });
+  const [viewersCount] = useState(() => Math.floor(Math.random() * 30) + 38);
 
   // Sync state stage to tracker
   useEffect(() => {
@@ -108,6 +141,9 @@ export default function App() {
           const data = await response.json();
           if (data.city && data.region_code) {
             setLocationText(`${data.city} - ${data.region_code}`);
+            setFreightCity(data.city);
+            setFreightState(data.region_code);
+            setFreightInfo(getFreightInfo(data.region_code));
             return;
           }
         }
@@ -121,6 +157,9 @@ export default function App() {
           const data = await response.json();
           if (data.success && data.city && data.region_code) {
             setLocationText(`${data.city} - ${data.region_code}`);
+            setFreightCity(data.city);
+            setFreightState(data.region_code);
+            setFreightInfo(getFreightInfo(data.region_code));
           }
         }
       } catch (e) {
@@ -129,6 +168,68 @@ export default function App() {
     };
     fetchLocation();
   }, []);
+
+  // Countdown timer — reseta a cada 24h via localStorage
+  useEffect(() => {
+    const storageKey = 'cartapetes_countdown_end';
+    let endTime = parseInt(localStorage.getItem(storageKey) || '0');
+    if (!endTime || endTime <= Date.now()) {
+      endTime = Date.now() + 24 * 60 * 60 * 1000;
+      localStorage.setItem(storageKey, endTime.toString());
+    }
+    const tick = () => {
+      const diff = Math.max(0, endTime - Date.now());
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown({ h, m, s });
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Toast notifications — show random buyer every 30–55s
+  useEffect(() => {
+    let idx = Math.floor(Math.random() * RECENT_BUYERS.length);
+    const show = () => {
+      setToast(RECENT_BUYERS[idx % RECENT_BUYERS.length]);
+      setToastKey(k => k + 1);
+      idx++;
+    };
+    const initial = setTimeout(show, 8000);
+    const interval = setInterval(show, 38000);
+    return () => { clearTimeout(initial); clearInterval(interval); };
+  }, []);
+
+  // Sticky CTA header on scroll
+  useEffect(() => {
+    const handleScroll = () => setShowSticky(window.scrollY > 420);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // CEP lookup function
+  const handleCepLookup = useCallback(async () => {
+    const raw = cepInput.replace(/\D/g, '');
+    if (raw.length !== 8) { setCepError('Digite um CEP válido com 8 dígitos.'); return; }
+    setCepLoading(true);
+    setCepError('');
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
+      const data = await res.json();
+      if (data.erro) { setCepError('CEP não encontrado. Tente novamente.'); setCepLoading(false); return; }
+      const uf = data.uf || '';
+      const city = data.localidade || '';
+      setFreightCity(city);
+      setFreightState(uf);
+      setFreightInfo(getFreightInfo(uf));
+      setLocationText(`${city} - ${uf}`);
+    } catch {
+      setCepError('Erro ao consultar o CEP. Verifique sua conexão.');
+    }
+    setCepLoading(false);
+  }, [cepInput]);
 
   // Calculate pricing values dynamically
   const originalPrice = selectedKit === 'basico' ? 197.00 : 297.00;
@@ -214,7 +315,7 @@ export default function App() {
               ))}
             </div>
             <span className="font-semibold text-[#111827]">(4.9)</span>
-            <span>· 2.847 avaliações</span>
+            <a href="#avaliacoes" className="text-[#FF5A00] underline font-semibold hover:text-orange-600 transition-colors">2.847 avaliações ↓</a>
           </div>
 
           {/* Shopee Official Partner trust notice */}
@@ -258,12 +359,72 @@ export default function App() {
           </div>
 
 
-          {/* Real-time viewers */}
-          <div className="mt-3 text-sm text-gray-600 flex items-center gap-2">
-            <span className="animate-pulse-fast text-red-500">👁️</span>
-            <span>
-              <b className="text-[#111827]">47 pessoas</b> estão vendo este produto agora
-            </span>
+          {/* Real-time viewers + Countdown */}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="text-sm text-gray-600 flex items-center gap-1.5">
+              <span className="dot-pulse inline-block w-2 h-2 rounded-full bg-red-500"></span>
+              <b className="text-[#111827]">{viewersCount} pessoas</b> vendo agora
+            </div>
+            <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 px-3 py-1 rounded-full text-xs font-bold">
+              <span className="animate-pulse-fast text-red-500">⚡</span>
+              <span className="text-gray-600">Oferta acaba em </span>
+              <span className="animate-countdown font-black">
+                {String(countdown.h).padStart(2,'0')}:{String(countdown.m).padStart(2,'0')}:{String(countdown.s).padStart(2,'0')}
+              </span>
+            </div>
+          </div>
+
+          {/* Freight Calculator */}
+          <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5A00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3" width="15" height="13" rx="2"/>
+                <path d="M16 8h4l3 5v3h-7V8z"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/>
+                <circle cx="18.5" cy="18.5" r="2.5"/>
+              </svg>
+              <span className="text-sm font-bold text-[#111827]">Calcular Frete</span>
+            </div>
+
+            {freightInfo && freightCity ? (
+              <div className="flex items-start gap-2 mb-3 animate-fade-up">
+                <span className="text-emerald-500 text-lg mt-0.5">✅</span>
+                <div>
+                  <div className="text-sm font-bold text-emerald-700">Frete {freightInfo.price} para {freightCity} — {freightState}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Prazo estimado: {freightInfo.days}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-4 h-4 shimmer rounded"></div>
+                <span className="text-xs text-gray-400">Detectando sua localização...</span>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Digite seu CEP"
+                value={cepInput}
+                maxLength={9}
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g,'').slice(0,8);
+                  setCepInput(v.length > 5 ? v.slice(0,5) + '-' + v.slice(5) : v);
+                  setCepError('');
+                }}
+                onKeyDown={e => e.key === 'Enter' && handleCepLookup()}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] focus:border-transparent"
+              />
+              <button
+                onClick={handleCepLookup}
+                disabled={cepLoading}
+                className="bg-[#FF5A00] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#e64f00] transition-colors disabled:opacity-60"
+              >
+                {cepLoading ? '...' : 'Calcular'}
+              </button>
+            </div>
+            {cepError && <p className="mt-1.5 text-xs text-red-500">{cepError}</p>}
+            <p className="mt-1.5 text-[10px] text-gray-400">Não sabe seu CEP? <a href="https://buscacepinter.correios.com.br/" target="_blank" rel="noopener noreferrer" className="text-[#FF5A00] underline">Consulte nos Correios</a></p>
           </div>
 
           {/* Vehicle Configurator Selector — DESTAQUE PRETO */}
@@ -774,107 +935,10 @@ export default function App() {
         </div>
       </section>
 
-      {/* 8. Testimonials Section */}
-      <section id="avaliacoes" className="bg-[#F3F4F6] py-14 border-t border-gray-200/50">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-center text-2xl sm:text-3xl font-extrabold mb-8 text-[#111827]">
-            O que Nossos Clientes Dizem
-          </h2>
+      {/* 8. Reviews Section - Shopee clone */}
+      <ReviewsSection />
 
-          {/* Average Rating Card */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 max-w-md mx-auto mb-10 shadow-sm flex flex-col sm:flex-row items-center gap-6">
-            <div className="text-center sm:border-r sm:border-gray-100 sm:pr-8 flex-shrink-0">
-              <div className="text-5xl font-black text-[#111827]">4.9</div>
-              <div className="flex items-center gap-0.5 justify-center mt-2" aria-label="4.9 estrelas">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <svg key={i} width="18" height="18" viewBox="0 0 24 24" fill="#FF5A00">
-                    <path d="M12 2l2.9 6.9L22 10l-5.5 4.8L18.2 22 12 18.3 5.8 22l1.7-7.2L2 10l7.1-1.1L12 2z"></path>
-                  </svg>
-                ))}
-              </div>
-              <div className="text-xs text-gray-400 mt-1.5">2.847 avaliações</div>
-            </div>
-            
-            <div className="flex-1 w-full space-y-2">
-              {[
-                { stars: 5, pct: 82 },
-                { stars: 4, pct: 12 },
-                { stars: 3, pct: 4 },
-                { stars: 2, pct: 1 },
-                { stars: 1, pct: 1 }
-              ].map((row) => (
-                <div key={row.stars} className="flex items-center gap-2 text-xs">
-                  <span className="w-3 text-gray-500 font-semibold text-right">{row.stars}</span>
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#FF5A00]" style={{ width: `${row.pct}%` }}></div>
-                  </div>
-                  <span className="w-8 text-right text-gray-400 font-medium">{row.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Testimonial Cards Grid */}
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                img: '/review-1.jpg',
-                name: 'Carlos M.',
-                loc: 'São Paulo, SP · 15/07/2026',
-                initial: 'C',
-                text: '“Tapetes de qualidade excelente! Encaixaram perfeitamente no meu Civic. Já enfrentei dias de chuva e o assoalho ficou completamente seco. Super recomendo!”'
-              },
-              {
-                img: '/review-2.jpg',
-                name: 'Ana Paula S.',
-                loc: 'Curitiba, PR · 13/07/2026',
-                initial: 'A',
-                text: '“Comprei o kit completo com porta-malas e valeu cada centavo. O acabamento é impecável e o encaixe é perfeito. Instalei sozinha em 2 minutos.”'
-              },
-              {
-                img: '/review-3.jpg',
-                name: 'Roberto F.',
-                loc: 'Belo Horizonte, MG · 10/07/2026',
-                initial: 'R',
-                text: '“Já comprei vários tapetes genéricos e nenhum se compara. Esses são sob medida, não escorregam e a limpeza é muito fácil. Melhor custo-benefício!”'
-              }
-            ].map((review, idx) => (
-              <div key={idx} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition duration-200">
-                <div className="h-48 overflow-hidden bg-gray-50">
-                  <img
-                    src={review.img}
-                    alt={`Foto de ${review.name}`}
-                    className="w-full h-full object-cover hover:scale-105 transition duration-300"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="p-5 flex-1 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-0.5" aria-label="5 estrelas">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill="#FF5A00">
-                          <path d="M12 2l2.9 6.9L22 10l-5.5 4.8L18.2 22 12 18.3 5.8 22l1.7-7.2L2 10l7.1-1.1L12 2z"></path>
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="mt-3 text-sm text-gray-600 leading-relaxed italic">{review.text}</p>
-                  </div>
-                  
-                  <div className="mt-5 flex items-center gap-3 border-t border-gray-50 pt-4">
-                    <div className="w-9 h-9 rounded-full bg-[#FF5A00] text-white flex items-center justify-center text-sm font-bold shadow-sm">
-                      {review.initial}
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-[#111827]">{review.name}</div>
-                      <div className="text-[10px] text-gray-400 font-medium">{review.loc}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* 8.5 Store Location / Map Section */}
       <section className="bg-white py-12 border-t border-gray-150">
@@ -999,11 +1063,73 @@ export default function App() {
         <a
           href="#seletor-veiculo"
           onClick={scrollToSelector}
-          className="flex-1 max-w-[200px] bg-[#FF5A00] text-white font-bold py-3.5 rounded-xl text-xs text-center uppercase tracking-wide shadow-sm hover:bg-[#e64f00] transition duration-150"
+          className="flex-1 max-w-[200px] cta-glow bg-gradient-to-r from-[#FF5A00] to-[#e64f00] text-white font-black py-3.5 rounded-xl text-xs text-center uppercase tracking-wide transition duration-150"
         >
-          Comprar agora
+          🚗 Comprar Agora
         </a>
       </div>
+
+      {/* 12. Sticky header CTA (desktop, after scroll) */}
+      {showSticky && (
+        <div className="fixed top-0 left-0 right-0 z-50 animate-slide-down bg-white border-b border-gray-200 shadow-lg hidden sm:flex items-center justify-between px-6 py-3 gap-4">
+          <div className="flex items-center gap-3">
+            <img src="/logo-whats-cropped.png" alt="CarTapetes" className="h-10 w-auto object-contain" />
+            <div>
+              <div className="text-xs text-gray-500 line-through">R$ {originalPrice.toFixed(2).replace('.', ',')}</div>
+              <div className="text-lg font-black text-[#FF5A00] leading-none">R$ {currentPrice.toFixed(2).replace('.', ',')} <span className="text-xs font-medium text-gray-500">à vista no PIX</span></div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 hidden md:flex">
+              <span className="dot-pulse inline-block w-2 h-2 rounded-full bg-red-500"></span>
+              <b className="text-gray-700">{viewersCount}</b> pessoas vendo agora
+            </div>
+            <button
+              onClick={scrollToSelector}
+              className="cta-glow bg-gradient-to-r from-[#FF5A00] to-[#e64f00] text-white font-black px-6 py-2.5 rounded-xl text-sm uppercase tracking-wide transition"
+            >
+              🚗 Comprar Agora
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 13. WhatsApp float button */}
+      <a
+        href="https://wa.me/5511911016413?text=Olá,%20tenho%20dúvidas%20sobre%20o%20Tapete%20Bandeja%20Premium"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Fale conosco pelo WhatsApp"
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 wa-bounce"
+      >
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-[#25D366] opacity-30 animate-ping"></div>
+          <div className="relative w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform duration-200">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+          </div>
+        </div>
+      </a>
+
+      {/* 14. Toast notification — recent purchase */}
+      {toast && (
+        <div
+          key={toastKey}
+          className="fixed bottom-24 left-4 z-50 animate-toast sm:bottom-8 sm:left-6 pointer-events-none"
+        >
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 max-w-xs">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF5A00] to-orange-400 flex items-center justify-center text-white font-black text-sm flex-shrink-0 shadow-sm">
+              {toast.name[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-[#111827] truncate">{toast.name} de {toast.city}-{toast.state}</div>
+              <div className="text-[11px] text-gray-500">comprou o kit para {toast.car} · há {toast.time}</div>
+            </div>
+            <span className="text-lg flex-shrink-0">🎉</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
