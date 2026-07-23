@@ -374,58 +374,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Freight Calculator */}
-          <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5A00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="1" y="3" width="15" height="13" rx="2"/>
-                <path d="M16 8h4l3 5v3h-7V8z"/>
-                <circle cx="5.5" cy="18.5" r="2.5"/>
-                <circle cx="18.5" cy="18.5" r="2.5"/>
-              </svg>
-              <span className="text-sm font-bold text-[#111827]">Calcular Frete</span>
-            </div>
-
-            {freightInfo && freightCity ? (
-              <div className="flex items-start gap-2 mb-3 animate-fade-up">
-                <span className="text-emerald-500 text-lg mt-0.5">✅</span>
-                <div>
-                  <div className="text-sm font-bold text-emerald-700">Frete {freightInfo.price} para {freightCity} — {freightState}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Prazo estimado: {freightInfo.days}</div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-4 h-4 shimmer rounded"></div>
-                <span className="text-xs text-gray-400">Detectando sua localização...</span>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Digite seu CEP"
-                value={cepInput}
-                maxLength={9}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,8);
-                  setCepInput(v.length > 5 ? v.slice(0,5) + '-' + v.slice(5) : v);
-                  setCepError('');
-                }}
-                onKeyDown={e => e.key === 'Enter' && handleCepLookup()}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] focus:border-transparent"
-              />
-              <button
-                onClick={handleCepLookup}
-                disabled={cepLoading}
-                className="bg-[#FF5A00] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#e64f00] transition-colors disabled:opacity-60"
-              >
-                {cepLoading ? '...' : 'Calcular'}
-              </button>
-            </div>
-            {cepError && <p className="mt-1.5 text-xs text-red-500">{cepError}</p>}
-            <p className="mt-1.5 text-[10px] text-gray-400">Não sabe seu CEP? <a href="https://buscacepinter.correios.com.br/" target="_blank" rel="noopener noreferrer" className="text-[#FF5A00] underline">Consulte nos Correios</a></p>
-          </div>
 
           {/* Vehicle Configurator Selector — DESTAQUE PRETO */}
           <div className="mt-6 relative" id="seletor-veiculo">
