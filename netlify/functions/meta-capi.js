@@ -25,31 +25,47 @@ exports.handler = async (event, context) => {
 
   try {
     const body = JSON.parse(event.body);
-    const pixelId = '1932684814101405';
+    const pixelId = '883537664402354';
     // Lê o Token da variável de ambiente no Netlify para segurança máxima,
     // caindo para o Token fornecido como fallback.
-    const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
+    const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBSDEWS7pZAqsh9JFU9rZAT1zb8g99ZBPZAMAFNFNqTMFhXpfuT9kZA42e6YZBNSAx8mKmqFCFQkwNLujTAsM83xbKdbss4CM6miDNCdqXnb5gs1zanzZAlsVKUUzCDeH0kx4W9kaEGZCaQVGI2m2484ak0j7sKyZCkmJY0gpLNzJ17FTZC1Psu6VwZDZD';
 
     // Obtém o IP real do cliente a partir dos cabeçalhos do Netlify
-    const clientIp = event.headers['x-nf-client-connection-ip'] || 
-                     event.headers['client-ip'] || 
-                     event.headers['x-forwarded-for'] || 
-                     body.client_ip_address || 
+    const clientIp = event.headers['x-nf-client-connection-ip'] ||
+                     event.headers['client-ip'] ||
+                     event.headers['x-forwarded-for'] ||
+                     body.client_ip_address ||
                      '127.0.0.1';
-    
+
     // Obtém o User Agent do cliente
-    const clientUserAgent = event.headers['user-agent'] || 
-                            body.client_user_agent || 
+    const clientUserAgent = event.headers['user-agent'] ||
+                            body.client_user_agent ||
                             '';
 
-    // Enriquecimento dos dados de usuário
+    // Enriquecimento máximo dos dados de usuário (para nota 10 no gerenciador)
     const userData = {
-      client_ip_address: clientIp.split(',')[0].trim(), // Pega o primeiro IP caso venha de proxy
+      // IP real do cliente (essencial para correspondência avançada)
+      client_ip_address: clientIp.split(',')[0].trim(),
+      // User Agent completo
       client_user_agent: clientUserAgent,
-      ...body.user_data
+      // Cookies do Meta (_fbp e _fbc para correspondência de cliques/browser)
+      ...(body.user_data?.fbp && { fbp: body.user_data.fbp }),
+      ...(body.user_data?.fbc && { fbc: body.user_data.fbc }),
+      // Dados pessoais em SHA-256 (correspondência avançada)
+      ...(body.user_data?.em && { em: body.user_data.em }),       // email
+      ...(body.user_data?.ph && { ph: body.user_data.ph }),       // telefone
+      ...(body.user_data?.fn && { fn: body.user_data.fn }),       // primeiro nome
+      ...(body.user_data?.ln && { ln: body.user_data.ln }),       // sobrenome
+      ...(body.user_data?.ct && { ct: body.user_data.ct }),       // cidade
+      ...(body.user_data?.st && { st: body.user_data.st }),       // estado
+      ...(body.user_data?.zp && { zp: body.user_data.zp }),       // CEP
+      ...(body.user_data?.country && { country: body.user_data.country }), // país (br)
+      ...(body.user_data?.ge && { ge: body.user_data.ge }),       // gênero (se coletado)
+      ...(body.user_data?.db && { db: body.user_data.db }),       // data de nascimento
+      ...(body.user_data?.external_id && { external_id: body.user_data.external_id }), // ID externo
     };
 
-    // Monta o payload do evento único
+    // Monta o payload do evento enriquecido
     const capiEvent = {
       event_name: body.event_name,
       event_time: Math.floor(Date.now() / 1000),
@@ -64,9 +80,9 @@ exports.handler = async (event, context) => {
       data: [capiEvent]
     };
 
-    console.log(`[Netlify Function CAPI] Enviando evento ${body.event_name} ao Meta para o Pixel ${pixelId}`);
+    console.log(`[Netlify CAPI] Enviando evento ${body.event_name} ao Meta | Pixel ${pixelId}`);
 
-    const response = await fetch(`https://graph.facebook.com/v17.0/${pixelId}/events?access_token=${accessToken}`, {
+    const response = await fetch(`https://graph.facebook.com/v20.0/${pixelId}/events?access_token=${accessToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -75,7 +91,7 @@ exports.handler = async (event, context) => {
     });
 
     const responseData = await response.json();
-    console.log(`[Netlify Function CAPI] Resposta do Meta:`, responseData);
+    console.log(`[Netlify CAPI] Resposta do Meta:`, responseData);
 
     return {
       statusCode: response.status,
@@ -87,7 +103,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(responseData)
     };
   } catch (error) {
-    console.error('[Netlify Function CAPI] Erro interno:', error);
+    console.error('[Netlify CAPI] Erro interno:', error);
     return {
       statusCode: 500,
       headers: {

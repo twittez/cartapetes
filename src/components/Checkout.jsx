@@ -134,9 +134,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     if (!initiatedRef.current) {
       initiatedRef.current = true;
       const eventId = generateEventId();
+      const kitId = kit === 'basico' ? 'kit_basico' : 'kit_premium';
       trackMetaEvent('InitiateCheckout', eventId, {
         value: finalPrice,
         currency: 'BRL',
+        content_type: 'product',
+        content_ids: [kitId],
+        contents: [{ id: kitId, quantity: 1, item_price: finalPrice }],
+        num_items: 1,
         content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
       });
     }

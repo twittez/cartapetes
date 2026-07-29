@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { generateEventId, trackMetaEvent } from '../utils/metaPixel';
+import { generateEventId, trackMetaEvent, getHashedUserData } from '../utils/metaPixel';
 
 export default function ThankYouUpsellPage() {
   const [purchaseData, setPurchaseData] = useState(null);
@@ -28,14 +28,33 @@ export default function ThankYouUpsellPage() {
         const data = JSON.parse(dataStr);
         setPurchaseData(data);
 
-        if (window.fbq && !window.purchaseEventTracked) {
+        if (!window.purchaseEventTracked) {
           window.purchaseEventTracked = true;
-          window.fbq('track', 'Purchase', {
-            value: data.value || 137.90,
+          const eventId = data.eventId || generateEventId();
+          const purchaseValue = data.value || 137.90;
+          const kitId = data.kit || 'kit_premium';
+
+          const customData = {
+            value: purchaseValue,
             currency: 'BRL',
             content_type: 'product',
-            contents: [{ id: data.kit || 'kit_premium', quantity: 1, item_price: data.value || 137.90 }]
-          }, { eventID: data.eventId });
+            content_ids: [kitId],
+            contents: [{ id: kitId, quantity: 1, item_price: purchaseValue }],
+            num_items: 1,
+            order_id: `ORD-${Date.now()}`,
+          };
+
+          // Dispara via Pixel (browser) + CAPI (servidor) com dados hasheados do usuário
+          getHashedUserData({
+            email: data.email,
+            telefone: data.telefone,
+            nome: data.nome,
+            cidade: data.cidade,
+            estado: data.estado,
+            cep: data.cep,
+          }).then(hashedUserData => {
+            trackMetaEvent('Purchase', eventId, customData, hashedUserData);
+          });
         }
       }
 
