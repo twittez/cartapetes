@@ -6,6 +6,7 @@ import Checkout from './components/Checkout';
 import Ticker from './components/Ticker';
 import ThankYouUpsellPage from './components/ThankYouUpsellPage';
 import ReviewsSection from './components/ReviewsSection';
+import TrackingPage from './components/TrackingPage';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
 import { tracker } from './utils/tracker';
@@ -82,6 +83,10 @@ export default function App() {
 
   if (currentPath === '/obrigado' || currentPath === '/obrigado.html') {
     return <ThankYouUpsellPage />;
+  }
+
+  if (currentPath === '/rastreio' || currentPath === '/rastreio.html') {
+    return <TrackingPage />;
   }
 
   const images = [

@@ -8,8 +8,8 @@
 
 # Redirecionamentos e Proxies do Netlify
 [[redirects]]
-  from = "/winnerpay-api/*"
-  to = "https://api.winnerpayy.com.br/api/:splat"
+  from = "/beehive-api/*"
+  to = "https://api.conta.paybeehive.com.br/:splat"
   status = 200
   force = true
 
@@ -19,8 +19,8 @@
   status = 200
 
 [[redirects]]
-  from = "/winnerpay-webhook"
-  to = "/.netlify/functions/winnerpay-webhook"
+  from = "/beehive-webhook"
+  to = "/.netlify/functions/beehive-webhook"
   status = 200
 
 [[redirects]]

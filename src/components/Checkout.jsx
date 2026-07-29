@@ -117,13 +117,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const totalOriginalPrice = originalPrice + originalUpsellTotal;
   const savings = totalOriginalPrice - finalPrice;
 
-  // WinnerPay API states
+  // Beehive API states
   const [pixCode, setPixCode] = useState('');
   const [pixPaid, setPixPaid] = useState(false);
   const [apiError, setApiError] = useState('');
   const [isApiLoading, setIsApiLoading] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   const [copied, setCopied] = useState(false);
+  const [trackingCode, setTrackingCode] = useState('');
 
   const initiatedRef = useRef(false);
 
@@ -317,64 +318,60 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     }
   }, [formData.cep]);
 
-  // Polling WinnerPay status check
+  // Polling Beehive status check
   useEffect(() => {
     let intervalId;
     if (step === 4 && paymentMethod === 'pix' && transactionId && !pixPaid) {
+      const BEEHIVE_SK = import.meta.env.VITE_BEEHIVE_SK || '';
+      const beehiveToken = btoa(BEEHIVE_SK + ':x');
       intervalId = setInterval(async () => {
         try {
           const response = await fetch(
-            `/winnerpay-api/dashboard/transactions/${transactionId}`,
+            `/beehive-api/v1/transactions/${transactionId}`,
             {
               method: 'GET',
               headers: {
-                'X-Client-Id': '25ec7953-fa82-41b4-a1ff-4cb0181d93e1',
-                'X-Client-Secret': '92d3a7623a62a4fe835cfb5c7d9d6181006c404cd9134a8f6b77c57e45a87dd8',
+                'Authorization': `Basic ${beehiveToken}`
               }
             }
           );
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.transaction) {
-              const status = data.transaction.status.toLowerCase();
-              if (status === 'paid' || status === 'completed') {
-                setPixPaid(true);
-                clearInterval(intervalId);
-                
-                let purchaseEventId = generateEventId();
-                let pendingData = {};
-                try {
-                  const pendingDataStr = localStorage.getItem('cartapetes_pending_purchase_data');
-                  if (pendingDataStr) {
-                    pendingData = JSON.parse(pendingDataStr);
-                    if (pendingData.eventId) {
-                      purchaseEventId = pendingData.eventId;
-                    }
-                  }
-                } catch (e) {}
+            const status = (data.status || '').toLowerCase();
+            if (status === 'paid') {
+              setPixPaid(true);
+              clearInterval(intervalId);
 
-                localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
-                  value: finalPrice,
-                  currency: 'BRL',
-                  eventId: purchaseEventId,
-                  kit: kit,
-                  upsellItems: upsellItems,
-                  nome: formData.nome,
-                  email: formData.email,
-                  telefone: formData.telefone,
-                  cep: formData.cep,
-                  cidade: formData.cidade,
-                  estado: formData.estado
-                }));
+              let purchaseEventId = generateEventId();
+              let pendingData = {};
+              try {
+                const pendingDataStr = localStorage.getItem('cartapetes_pending_purchase_data');
+                if (pendingDataStr) {
+                  pendingData = JSON.parse(pendingDataStr);
+                  if (pendingData.eventId) purchaseEventId = pendingData.eventId;
+                }
+              } catch (e) {}
 
-                // Limpa dados temporários do Pix pendente
-                saveLeadToSupabase('pago');
-                window.location.href = '/obrigado';
-              }
+              localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
+                value: finalPrice,
+                currency: 'BRL',
+                eventId: purchaseEventId,
+                kit: kit,
+                upsellItems: upsellItems,
+                nome: formData.nome,
+                email: formData.email,
+                telefone: formData.telefone,
+                cep: formData.cep,
+                cidade: formData.cidade,
+                estado: formData.estado
+              }));
+
+              saveLeadToSupabase('pago');
+              window.location.href = '/obrigado';
             }
           }
         } catch (err) {
-          console.error('Error checking payment status:', err);
+          console.error('[Beehive] Error checking payment status:', err);
         }
       }, 3000);
     }
@@ -420,6 +417,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     setApiError('');
     try {
       const purchaseEventId = generateEventId();
+      const orderId = `CP-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
       localStorage.setItem('cartapetes_pending_purchase_data', JSON.stringify({
         value: finalPrice,
@@ -440,78 +438,89 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         ? 'https://seguro.cartapetes.com.br'
         : window.location.origin;
 
-      const winnerpayBody = {
-        amount: parseFloat(finalPrice.toFixed(2)),
-        description: `Tapete Bandeja Premium - ${vehicle || 'Carro'}`,
-        postbackUrl: postbackOrigin + '/winnerpay-webhook',
-        metadata: {
-          order_id: `ORD-${Date.now()}`,
-          product: {
-            name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle}${upsellItems.length > 0 ? ' + ' + upsellItems.map(i => i.title).join(', ') : ''}${perfumeUpsell ? ' + Perfume Automotivo' : ''}`
-          },
-          upsell_items: [...upsellItems, ...(perfumeUpsell ? [{ id: 'perfume', title: 'Perfume Automotivo Premium', price: 14.90 }] : [])],
-          tracking: {
-            eventId: purchaseEventId,
-            fbp: getCookie('_fbp') || '',
-            fbc: getCookie('_fbc') || '',
-            userAgent: navigator.userAgent,
-            telefone: formData.telefone,
-            cep: formData.cep,
-            rua: formData.rua,
-            numero: formData.numero,
-            bairro: formData.bairro,
-            cidade: formData.cidade,
-            estado: formData.estado
-          }
-        },
+      // Beehive API – amount em centavos
+      const amountCents = Math.round(finalPrice * 100);
+
+      const beehiveBody = {
+        amount: amountCents,
+        paymentMethod: 'pix',
         customer: {
           name: formData.nome,
           email: formData.email,
           phone: formData.telefone.replace(/\D/g, ''),
-          phone_number: formData.telefone.replace(/\D/g, ''),
           document: {
-            type: "CPF",
+            type: 'cpf',
             number: formData.cpf.replace(/\D/g, '')
-          },
-          address: {
-            street: formData.rua,
-            number: formData.numero,
-            complement: formData.complemento || '',
-            neighborhood: formData.bairro,
-            city: formData.cidade,
-            state: formData.estado,
-            zipcode: formData.cep.replace(/\D/g, ''),
-            country: 'BR'
           }
-        }
+        },
+        items: [
+          {
+            title: `Tapete Bandeja Premium – ${vehicle || 'Carro'}`,
+            unitPrice: amountCents,
+            quantity: 1,
+            tangible: true
+          }
+        ],
+        metadata: {
+          provider: 'cartapetes',
+          user_email: formData.email,
+          order_id: orderId,
+          checkout_url: postbackOrigin + '/checkout',
+          shop_url: 'https://cartapetes.com.br'
+        },
+        postbackUrl: postbackOrigin + '/beehive-webhook',
+        pix: { expiresInSeconds: 1800 }
       };
 
-      console.log('Creating PIX on WinnerPay via proxy...', winnerpayBody);
+      console.log('[Beehive] Creating PIX...', beehiveBody);
 
-      const response = await fetch('/winnerpay-api/financial/receber-pix', {
+      const BEEHIVE_SK = import.meta.env.VITE_BEEHIVE_SK || '';
+      const beehiveToken = btoa(BEEHIVE_SK + ':x');
+
+      const response = await fetch('/beehive-api/v1/transactions', {
         method: 'POST',
         headers: {
-          'X-Client-Id': '25ec7953-fa82-41b4-a1ff-4cb0181d93e1',
-          'X-Client-Secret': '92d3a7623a62a4fe835cfb5c7d9d6181006c404cd9134a8f6b77c57e45a87dd8',
+          'Authorization': `Basic ${beehiveToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(winnerpayBody),
+        body: JSON.stringify(beehiveBody),
       });
 
       const data = await response.json();
-      console.log('WinnerPay response:', data);
+      console.log('[Beehive] Response:', data);
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
         throw new Error(data.message || data.error || 'Erro ao criar pagamento PIX');
       }
 
-      setPixCode(data.pix_copia_e_cola || data.qr_code_data);
-      const generatedTxId = data.transaction ? data.transaction.transaction_id : (data.pix_key || "TXN_" + Date.now());
-      setTransactionId(generatedTxId);
-      saveLeadToSupabase('pendente', generatedTxId);
+      // QR code está em data.pix.qrcode (minúsculas)
+      const qrCode = data.pix?.qrcode || data.pix?.qrCode || data.qrCode || '';
+      if (!qrCode) throw new Error('PIX gerado mas QR Code não retornado.');
+
+      setPixCode(qrCode);
+      setTransactionId(String(data.id));
+
+      // Gera código de rastreio
+      const tCode = 'CP' + orderId.replace(/\D/g, '').substring(0, 8) + Math.floor(Math.random() * 900 + 100);
+      setTrackingCode(tCode);
+      try {
+        const allOrders = JSON.parse(localStorage.getItem('cpOrders') || '{}');
+        allOrders[tCode] = {
+          trackingCode: tCode,
+          orderId,
+          name: formData.nome,
+          email: formData.email,
+          total: finalPrice,
+          createdAt: new Date().toISOString(),
+          status: 'em_producao'
+        };
+        localStorage.setItem('cpOrders', JSON.stringify(allOrders));
+      } catch (e) {}
+
+      saveLeadToSupabase('pendente', String(data.id));
       setStep(4);
     } catch (err) {
-      console.error('WinnerPay API Error:', err);
+      console.error('[Beehive] PIX Error:', err);
       setApiError(err.message || 'Erro de conexão com o provedor de pagamentos.');
     } finally {
       setIsApiLoading(false);
@@ -1570,6 +1579,19 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
                       Abra o app do seu banco, vá na seção **Pix** e selecione **Pix Copia e Cola**. A aprovação leva segundos!
                     </div>
 
+                    {/* Tracking Code */}
+                    {trackingCode && (
+                      <div className="bg-green-50 border-2 border-green-400 rounded-xl p-4 max-w-sm mx-auto text-center">
+                        <p className="text-[11px] font-bold text-green-800 mb-1">🚚 Seu Código de Rastreio</p>
+                        <p className="text-lg font-extrabold tracking-widest text-green-700 mb-1">{trackingCode}</p>
+                        <p className="text-[10px] text-green-600 mb-2">Guarde para rastrear seu pedido</p>
+                        <a
+                          href={`/rastreio?codigo=${trackingCode}`}
+                          className="inline-block bg-green-600 text-white text-[11px] font-bold px-4 py-1.5 rounded-lg hover:bg-green-700 transition"
+                        >Rastrear Meu Pedido →</a>
+                      </div>
+                    )}
+
                     <div className="space-y-2 max-w-xs mx-auto pt-2">
                       <button
                         onClick={handleManualPaymentConfirm}
@@ -1890,7 +1912,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
           <div className="space-y-1 mt-6 text-slate-500 text-[10px]">
             <div className="font-bold text-slate-700 text-xs">CarTapetes Ltda.</div>
-            <div>CNPJ: 15.807.911/0001-00 | Endereço: Avenida Cristiano Machado 8966 Galpão 01, 02 e 03 Minaslândia Belo Horizonte MG 31812-112</div>
+            <div>CNPJ: 59.291.162/0001-79 | Endereço: Avenida Cristiano Machado 8966 Galpão 01, 02 e 03 Minaslândia Belo Horizonte MG 31812-112</div>
             <div className="text-slate-400 mt-2">© 2026 CarTapetes. Todos os direitos reservados.</div>
           </div>
         </div>
