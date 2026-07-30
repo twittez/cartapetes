@@ -686,7 +686,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             installments: formData.installments
           });
 
-          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '';
+          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '/api/checkout';
           
           const sendToAdmin = async () => {
             if (adminUrl) {
