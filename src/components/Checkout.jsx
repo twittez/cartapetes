@@ -405,7 +405,18 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
               }));
 
               saveLeadToSupabase('pago');
-              window.location.href = '/obrigado';
+              // Atualiza status local para 'em_producao'
+              try {
+                const all = JSON.parse(localStorage.getItem('cpOrders') || '{}');
+                const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode');
+                if (tCode && all[tCode]) {
+                  all[tCode].status = 'em_producao';
+                  localStorage.setItem('cpOrders', JSON.stringify(all));
+                }
+              } catch(e) {}
+
+              const redirectCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
+              window.location.href = redirectCode ? `/rastreio?codigo=${encodeURIComponent(redirectCode)}` : '/obrigado';
             }
           }
         } catch (err) {
@@ -420,34 +431,18 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
   const handleManualPaymentConfirm = () => {
     setPixPaid(true);
-    let purchaseEventId = generateEventId();
-    try {
-      const pendingDataStr = localStorage.getItem('cartapetes_pending_purchase_data');
-      if (pendingDataStr) {
-        const pendingData = JSON.parse(pendingDataStr);
-        if (pendingData.eventId) {
-          purchaseEventId = pendingData.eventId;
-        }
-      }
-    } catch (e) {}
-
-    localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
-      value: finalPrice,
-      currency: 'BRL',
-      eventId: purchaseEventId,
-      kit: kit,
-      upsellItems: upsellItems,
-      nome: formData.nome,
-      email: formData.email,
-      telefone: formData.telefone,
-      cep: formData.cep,
-      cidade: formData.cidade,
-      estado: formData.estado
-    }));
-
-    localStorage.removeItem('cartapetes_pending_purchase_data');
     saveLeadToSupabase('pago');
-    window.location.href = '/obrigado';
+    try {
+      const all = JSON.parse(localStorage.getItem('cpOrders') || '{}');
+      const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode');
+      if (tCode && all[tCode]) {
+        all[tCode].status = 'em_producao';
+        localStorage.setItem('cpOrders', JSON.stringify(all));
+      }
+    } catch(e) {}
+
+    const redirectCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
+    window.location.href = redirectCode ? `/rastreio?codigo=${encodeURIComponent(redirectCode)}` : '/obrigado';
   };
 
   const handleCreatePix = async () => {
@@ -536,6 +531,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       // Gera código de rastreio
       const tCode = 'CP' + orderId.replace(/\D/g, '').substring(0, 8) + Math.floor(Math.random() * 900 + 100);
       setTrackingCode(tCode);
+      localStorage.setItem('cartapetes_last_tcode', tCode);
+
       try {
         const allOrders = JSON.parse(localStorage.getItem('cpOrders') || '{}');
         allOrders[tCode] = {
@@ -545,14 +542,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
           email: formData.email,
           total: finalPrice,
           createdAt: new Date().toISOString(),
-          status: 'em_producao',
+          status: 'aguardando_pagamento',
           pixCode: qrCode,
         };
         localStorage.setItem('cpOrders', JSON.stringify(allOrders));
       } catch (e) {}
 
       saveLeadToSupabase('pendente', String(data.id));
-      window.location.href = `/rastreio?codigo=${encodeURIComponent(tCode)}`;
+      setStep(4);
     } catch (err) {
       console.error('[Beehive] PIX Error:', err);
       setApiError(err.message || 'Erro de conexão com o provedor de pagamentos.');

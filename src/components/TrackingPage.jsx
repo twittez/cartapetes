@@ -257,10 +257,17 @@ export default function TrackingPage() {
                     <p className="text-[10px] text-slate-400 uppercase font-extrabold tracking-widest">Código do Pedido</p>
                     <p className="text-base font-black text-white mt-0.5">{orderData.orderId || orderData.trackingCode}</p>
                   </div>
-                  <div className="flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 text-xs font-extrabold px-3.5 py-1.5 rounded-full">
-                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                    Em Produção
-                  </div>
+                  {orderData.status === 'aguardando_pagamento' || orderData.status === 'pendente' ? (
+                    <div className="flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-extrabold px-3.5 py-1.5 rounded-full">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                      Aguardando Pagamento
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 text-xs font-extrabold px-3.5 py-1.5 rounded-full">
+                      <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      Em Produção
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -312,7 +319,19 @@ export default function TrackingPage() {
                   {/* Vertical Progress Line */}
                   <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-slate-800" />
 
-                  {[
+                  {orderData.status === 'aguardando_pagamento' || orderData.status === 'pendente' ? [
+                    {
+                      active: true, icon: '⚡',
+                      title: 'Pedido Gerado · Aguardando Pagamento PIX',
+                      desc: 'Aguardando a confirmação do pagamento via PIX para enviar para a fila de corte e produção.',
+                      date: fmtDateTime(createdAt)
+                    },
+                    { pending: true, icon: '✓', title: 'Pagamento Aprovado', desc: 'Aguardando confirmação bancária.' },
+                    { pending: true, icon: '⚙', title: 'Em Produção (Corte & Acabamento)', desc: 'Será cortado no molde exato do seu veículo assim que aprovado.' },
+                    { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
+                    { pending: true, icon: '🚀', title: 'Saiu para Entrega', desc: 'Objeto em trânsito para o seu endereço cadastrado.' },
+                    { pending: true, icon: '🏠', title: 'Entregue', desc: 'Produto entregue com sucesso!' }
+                  ] : [
                     {
                       done: true, icon: '✓',
                       title: 'Pedido Confirmado',
@@ -334,7 +353,7 @@ export default function TrackingPage() {
                     { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
                     { pending: true, icon: '🚀', title: 'Saiu para Entrega', desc: 'Objeto em trânsito para o seu endereço cadastrado.' },
                     { pending: true, icon: '🏠', title: 'Entregue', desc: 'Produto entregue com sucesso!' }
-                  ].map((item, i) => (
+                  ]}.map((item, i) => (
                     <div key={i} className="relative">
                       {/* Status Node Dot */}
                       <div className={`absolute -left-[33px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black z-10 transition-all ${
