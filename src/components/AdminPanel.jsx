@@ -28,27 +28,42 @@ export default function AdminPanel() {
     }
   }, []);
 
-  // Fetch leads from Supabase
+  // Fetch leads from Supabase + Local Storage
   const fetchLeads = async () => {
-    if (!supabase) return;
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+    let allLeads = [];
 
-      if (error) {
-        console.error('Error fetching leads:', error.message);
-      } else {
-        setLeads(data || []);
-        calculateStats(data || []);
+    // 1. Local Storage Leads
+    try {
+      const local = JSON.parse(localStorage.getItem('cartapetes_local_leads') || '[]');
+      allLeads = [...local];
+    } catch (e) {}
+
+    // 2. Supabase Leads
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          const existingKeys = new Set(allLeads.map(l => l.transaction_id || l.id));
+          data.forEach(dbLead => {
+            const key = dbLead.transaction_id || dbLead.id;
+            if (!existingKeys.has(key)) {
+              allLeads.push(dbLead);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error in Supabase query:', err);
       }
-    } catch (err) {
-      console.error('Error in query:', err);
-    } finally {
-      setLoading(false);
     }
+
+    setLeads(allLeads);
+    calculateStats(allLeads);
+    setLoading(false);
   };
 
   useEffect(() => {

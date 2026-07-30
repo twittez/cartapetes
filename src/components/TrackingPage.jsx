@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../utils/supabase';
 
 function addBusinessDays(startDate, days) {
   let d = new Date(startDate);
@@ -62,7 +63,7 @@ export default function TrackingPage() {
     } catch (e) {}
   }, []);
 
-  function doSearch(rawCode) {
+  async function doSearch(rawCode) {
     const code = (rawCode || inputCode).trim().toUpperCase();
     if (!code) return;
     setSearched(true);
@@ -80,21 +81,45 @@ export default function TrackingPage() {
     if (!found) {
       try {
         const last = JSON.parse(sessionStorage.getItem('lastOrder') || 'null');
-        if (last && last.trackingCode === code) found = last;
+        if (last && (last.trackingCode === code || last.orderId === code)) found = last;
       } catch (e) {}
     }
 
-    // 3. Fallback: sample code or valid CP prefix
+    // 3. Query Supabase Database if available
+    if (supabase) {
+      try {
+        const { data } = await supabase
+          .from('leads')
+          .select('*')
+          .or(`tracking_code.eq.${code},transaction_id.eq.${code}`)
+          .maybeSingle();
+
+        if (data) {
+          found = {
+            trackingCode: code,
+            orderId: data.transaction_id || code,
+            name: data.nome || 'Cliente',
+            email: data.email || '',
+            total: data.final_price || 131.00,
+            createdAt: data.created_at || new Date().toISOString(),
+            status: data.status === 'pago' ? 'em_producao' : 'aguardando_pagamento',
+          };
+        }
+      } catch (sbErr) {
+        console.warn('[Tracking] Supabase lookup:', sbErr);
+      }
+    }
+
+    // 4. Fallback for CP prefix
     if (!found && (code === 'CPKF897421' || code.startsWith('CP') || code.length >= 6)) {
       found = {
         trackingCode: code || 'CPKF897421',
-        orderId: `CP-${Date.now().toString().substring(5)}-8974`,
-        name: 'João Silva',
-        email: 'joao.silva@exemplo.com',
+        orderId: code,
+        name: 'Cliente',
+        email: '',
         total: 131.00,
         createdAt: new Date().toISOString(),
         status: 'aguardando_pagamento',
-        pixCode: '00020101021226820014br.gov.bcb.pix2560pix.stone.com.br/pix/v2/34b486ad-20f9-4d8d-b31d-13ca4e6cb5ab5204000053039865405131.005802BR5913PAGAR.ME S.A.6014RIO DE JANEIRO'
       };
     }
 
