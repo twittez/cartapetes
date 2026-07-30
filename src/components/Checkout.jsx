@@ -545,13 +545,14 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
           email: formData.email,
           total: finalPrice,
           createdAt: new Date().toISOString(),
-          status: 'em_producao'
+          status: 'em_producao',
+          pixCode: qrCode,
         };
         localStorage.setItem('cpOrders', JSON.stringify(allOrders));
       } catch (e) {}
 
       saveLeadToSupabase('pendente', String(data.id));
-      setStep(4);
+      window.location.href = `/rastreio?codigo=${encodeURIComponent(tCode)}`;
     } catch (err) {
       console.error('[Beehive] PIX Error:', err);
       setApiError(err.message || 'Erro de conexão com o provedor de pagamentos.');

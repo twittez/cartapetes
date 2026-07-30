@@ -30,6 +30,14 @@ export default function TrackingPage() {
   const [orderData, setOrderData] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [copiedPix, setCopiedPix] = useState(false);
+
+  const handleCopyPix = (code) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedPix(true);
+    setTimeout(() => setCopiedPix(false), 3000);
+  };
 
   // Auto-fill from URL param or sessionStorage on load
   useEffect(() => {
@@ -164,6 +172,40 @@ export default function TrackingPage() {
 
           return (
             <div className="space-y-4 animate-fadeIn">
+              {/* PIX QR Code Box (If pending payment) */}
+              {orderData.pixCode && (
+                <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-5 text-center space-y-4 shadow-sm">
+                  <div className="flex items-center justify-center gap-2 text-emerald-800 font-extrabold text-sm">
+                    <span>⚡ Conclua seu Pagamento via PIX</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-emerald-200 max-w-[200px] mx-auto shadow-inner flex items-center justify-center">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(orderData.pixCode)}`}
+                      alt="QR Code Pix"
+                      className="w-40 h-40 rounded-lg"
+                    />
+                  </div>
+                  <div className="space-y-1.5 max-w-sm mx-auto">
+                    <label className="block text-[10px] text-emerald-700 uppercase font-bold">Código Copia e Cola</label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        readOnly
+                        value={orderData.pixCode}
+                        className="flex-1 bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 font-mono outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPix(orderData.pixCode)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer"
+                      >
+                        {copiedPix ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Order Info Card */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
