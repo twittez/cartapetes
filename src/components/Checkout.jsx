@@ -474,15 +474,10 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
       console.log('[Beehive] Creating PIX...', beehiveBody);
 
-      const BEEHIVE_SK = import.meta.env.VITE_BEEHIVE_SK || '';
-      const beehiveToken = btoa(BEEHIVE_SK + ':x');
-
-      const response = await fetch('/beehive-api/v1/transactions', {
+      // Chama a Netlify Function (proxy server-side) - SK fica no servidor
+      const response = await fetch('/.netlify/functions/beehive-pix', {
         method: 'POST',
-        headers: {
-          'Authorization': `Basic ${beehiveToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(beehiveBody),
       });
 
