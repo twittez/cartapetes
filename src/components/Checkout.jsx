@@ -189,9 +189,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
     if (!supabase) return;
 
-    const txId = transactionIdOverride || transactionId || `TXN_${Date.now()}`;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(txId);
     const leadData = {
-      id: txId,
       created_at: new Date().toISOString(),
       nome: formData.nome,
       email: formData.email,
@@ -215,6 +214,9 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       tracking_code: trackingCode || localStorage.getItem('cartapetes_last_tcode') || '',
       ...extraData
     };
+    if (isUuid) {
+      leadData.id = txId;
+    }
 
     // Always store in localStorage fallback for Admin Panel
     try {
