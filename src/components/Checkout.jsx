@@ -148,7 +148,44 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     }
   }, []);
 
+  const sendUtmifyOrder = async (leadInfo) => {
+    try {
+      await fetch('/.netlify/functions/utmify-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: leadInfo.orderId || `CP-${Date.now()}`,
+          platform: 'Beehive',
+          paymentMethod: 'pix',
+          status: 'paid',
+          value: leadInfo.value || finalPrice,
+          customer: {
+            name: leadInfo.nome || formData.nome,
+            email: leadInfo.email || formData.email,
+            phone: leadInfo.telefone || formData.telefone,
+            document: leadInfo.cpf || formData.cpf,
+          },
+          productName: `Tapete Bandeja Premium - ${vehicle || 'Carro'}`,
+        }),
+      });
+      console.log('[UTMify] Pedido enviado para UTMify com sucesso!');
+    } catch (e) {
+      console.warn('[UTMify] Erro ao enviar pedido:', e);
+    }
+  };
+
   const saveLeadToSupabase = async (status, transactionIdOverride = null, extraData = {}) => {
+    if (status === 'pago') {
+      sendUtmifyOrder({
+        orderId: transactionIdOverride || transactionId || `CP-${Date.now()}`,
+        value: finalPrice,
+        nome: formData.nome,
+        email: formData.email,
+        telefone: formData.telefone,
+        cpf: formData.cpf,
+      });
+    }
+
     if (!supabase) return;
 
     try {

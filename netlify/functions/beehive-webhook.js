@@ -1,8 +1,38 @@
 const crypto = require('crypto');
+const https = require('https');
 
 function sha256(str) {
   if (!str) return '';
   return crypto.createHash('sha256').update(str.trim().toLowerCase()).digest('hex');
+}
+
+function postToUtmify(payload, token) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify(payload);
+    const options = {
+      hostname: 'api.utmify.com.br',
+      port: 443,
+      path: '/api-credentials/orders',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(bodyStr),
+        'x-api-token': token,
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        resolve({ status: res.statusCode, body: data });
+      });
+    });
+
+    req.on('error', reject);
+    req.write(bodyStr);
+    req.end();
+  });
 }
 
 exports.handler = async (event, context) => {
@@ -69,21 +99,76 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 2. Extrair dados do cliente
+    // 2. Extrair dados do cliente e transação
     const customer = txnData.customer || {};
     const metadata = txnData.metadata || {};
 
     const nome     = customer.name  || '';
     const email    = customer.email || '';
-    const telefone = customer.phone || '';
-    const value    = (txnData.amount || 0) / 100; // centavos → reais
+    const telefone = (customer.phone || '').replace(/\D/g, '');
+    const documentNum = (customer.document?.number || '').replace(/\D/g, '');
+    const amountInCents = txnData.amount || 0;
+    const value    = amountInCents / 100; // centavos → reais
 
-    // 3. Hash para Meta CAPI
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // 3. Notificar UTMify
+    const utmifyToken = process.env.UTMIFY_TOKEN || 'HNIuD0M6zetaINZlNEBZQAzabtvFovXyt8Ui';
+    const utmifyPayload = {
+      orderId: metadata.order_id || `CP-${transactionId}`,
+      platform: 'Beehive',
+      paymentMethod: 'pix',
+      status: 'paid',
+      createdAt: nowStr,
+      approvedDate: nowStr,
+      refundedAt: null,
+      customer: {
+        name: nome,
+        email: email,
+        phone: telefone,
+        document: documentNum,
+      },
+      products: [
+        {
+          id: 'kit_tapete',
+          name: 'Tapete Bandeja Premium Sob Medida',
+          planId: null,
+          planName: null,
+          quantity: 1,
+          priceInCents: amountInCents,
+        },
+      ],
+      trackingParameters: {
+        src: null,
+        sck: null,
+        utm_source: null,
+        utm_medium: null,
+        utm_campaign: null,
+        utm_content: null,
+        utm_term: null,
+      },
+      commission: {
+        totalPriceInCents: amountInCents,
+        gatewayFeeInCents: txnData.fee?.estimatedFee || 0,
+        userCommissionInCents: txnData.fee?.netAmount || amountInCents,
+      },
+      isTest: false,
+    };
+
+    try {
+      console.log(`[Beehive Webhook] Enviando pedido para UTMify (Order ID: ${utmifyPayload.orderId})...`);
+      const utmRes = await postToUtmify(utmifyPayload, utmifyToken);
+      console.log(`[Beehive Webhook] Resposta UTMify (${utmRes.status}):`, utmRes.body);
+    } catch (utmErr) {
+      console.error('[Beehive Webhook] Erro ao disparar para UTMify:', utmErr.message);
+    }
+
+    // 4. Hash para Meta CAPI
     const hashedData = { country: sha256('br') };
-    if (email)    hashedData.em = sha256(email);
+    if (email) hashedData.em = sha256(email);
     if (telefone) {
-      const clean = telefone.replace(/\D/g, '');
-      hashedData.ph = sha256(clean.startsWith('55') ? clean : '55' + clean);
+      const phoneWithCountry = telefone.startsWith('55') ? telefone : '55' + telefone;
+      hashedData.ph = sha256(phoneWithCountry);
     }
     if (nome) {
       const parts = nome.trim().split(/\s+/);
@@ -137,7 +222,12 @@ exports.handler = async (event, context) => {
     return {
       statusCode: response.status,
       headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-      body: JSON.stringify(responseData)
+      body: JSON.stringify({
+        success: true,
+        utmifySent: true,
+        metaSent: true,
+        transactionId
+      })
     };
 
   } catch (error) {
