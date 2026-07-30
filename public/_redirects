@@ -1,4 +1,6 @@
 /winnerpay-api/*  https://api.winnerpayy.com.br/api/:splat  200!
 /meta-capi  /.netlify/functions/meta-capi  200
 /winnerpay-webhook  /.netlify/functions/winnerpay-webhook  200
+/api/checkout  /.netlify/functions/checkout  200
+/api/checkout-pix  /.netlify/functions/checkout  200
 /*  /index.html  200

