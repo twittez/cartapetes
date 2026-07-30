@@ -150,6 +150,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
   const sendUtmifyOrder = async (leadInfo) => {
     try {
+      const orderStatus = leadInfo.status === 'pago' ? 'paid' : 'waiting_payment';
       await fetch('/.netlify/functions/utmify-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -157,7 +158,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
           orderId: leadInfo.orderId || `CP-${Date.now()}`,
           platform: 'Beehive',
           paymentMethod: 'pix',
-          status: 'paid',
+          status: orderStatus,
           value: leadInfo.value || finalPrice,
           customer: {
             name: leadInfo.nome || formData.nome,
@@ -168,23 +169,23 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
           productName: `Tapete Bandeja Premium - ${vehicle || 'Carro'}`,
         }),
       });
-      console.log('[UTMify] Pedido enviado para UTMify com sucesso!');
+      console.log(`[UTMify] Pedido (${orderStatus}) enviado para UTMify com sucesso!`);
     } catch (e) {
       console.warn('[UTMify] Erro ao enviar pedido:', e);
     }
   };
 
   const saveLeadToSupabase = async (status, transactionIdOverride = null, extraData = {}) => {
-    if (status === 'pago') {
-      sendUtmifyOrder({
-        orderId: transactionIdOverride || transactionId || `CP-${Date.now()}`,
-        value: finalPrice,
-        nome: formData.nome,
-        email: formData.email,
-        telefone: formData.telefone,
-        cpf: formData.cpf,
-      });
-    }
+    // Dispara para UTMify tanto para pedido pendente quanto para pago
+    sendUtmifyOrder({
+      orderId: transactionIdOverride || transactionId || `CP-${Date.now()}`,
+      status: status,
+      value: finalPrice,
+      nome: formData.nome,
+      email: formData.email,
+      telefone: formData.telefone,
+      cpf: formData.cpf,
+    });
 
     if (!supabase) return;
 

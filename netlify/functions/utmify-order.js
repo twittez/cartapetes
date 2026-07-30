@@ -29,6 +29,20 @@ function postToUtmify(payload, token) {
   });
 }
 
+function mapStatus(inputStatus) {
+  const s = (inputStatus || '').toLowerCase();
+  if (s === 'paid' || s === 'pago' || s === 'approved' || s === 'completed') {
+    return 'paid';
+  }
+  if (s === 'refunded' || s === 'reembolsado') {
+    return 'refunded';
+  }
+  if (s === 'refused' || s === 'negado' || s === 'recusado') {
+    return 'refused';
+  }
+  return 'waiting_payment';
+}
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -53,14 +67,15 @@ exports.handler = async (event, context) => {
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     const amountInCents = body.amountInCents || Math.round((body.value || 131) * 100);
+    const mappedStatus = mapStatus(body.status);
 
     const utmifyPayload = {
       orderId: body.orderId || `CP-${Date.now()}`,
       platform: body.platform || 'Beehive',
       paymentMethod: body.paymentMethod || 'pix',
-      status: body.status || 'paid',
+      status: mappedStatus,
       createdAt: body.createdAt || nowStr,
-      approvedDate: body.status === 'paid' ? (body.approvedDate || nowStr) : null,
+      approvedDate: mappedStatus === 'paid' ? (body.approvedDate || nowStr) : null,
       refundedAt: null,
       customer: {
         name: body.customer?.name || body.nome || 'Cliente',
