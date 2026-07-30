@@ -220,6 +220,43 @@ export default function TrackingPage() {
           const createdAt = orderData.createdAt ? new Date(orderData.createdAt) : new Date();
           const deliveryDate = addBusinessDays(createdAt, 15);
           const step2Date = new Date(createdAt.getTime() + 2 * 3600 * 1000);
+          const isPending = orderData.status === 'aguardando_pagamento' || orderData.status === 'pendente';
+
+          const timelineItems = isPending ? [
+            {
+              active: true, icon: '⚡',
+              title: 'Pedido Gerado · Aguardando Pagamento PIX',
+              desc: 'Aguardando a confirmação do pagamento via PIX para enviar para a fila de corte e produção.',
+              date: fmtDateTime(createdAt)
+            },
+            { pending: true, icon: '✓', title: 'Pagamento Aprovado', desc: 'Aguardando confirmação bancária.' },
+            { pending: true, icon: '⚙', title: 'Em Produção (Corte & Acabamento)', desc: 'Será cortado no molde exato do seu veículo assim que aprovado.' },
+            { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
+            { pending: true, icon: '🚀', title: 'Saiu para Entrega', desc: 'Objeto em trânsito para o seu endereço cadastrado.' },
+            { pending: true, icon: '🏠', title: 'Entregue', desc: 'Produto entregue com sucesso!' }
+          ] : [
+            {
+              done: true, icon: '✓',
+              title: 'Pedido Confirmado',
+              desc: 'Pedido registrado no sistema e enviado para a fila de produção.',
+              date: fmtDateTime(createdAt)
+            },
+            {
+              done: true, icon: '✓',
+              title: 'Pagamento Aprovado',
+              desc: 'Confirmação do pagamento recebida com sucesso.',
+              date: fmtDateTime(step2Date)
+            },
+            {
+              active: true, icon: '⚙',
+              title: 'Em Produção (Corte & Acabamento)',
+              desc: 'O tapete está sendo cortado no molde exato do seu veículo. Esta etapa leva de 3 a 5 dias úteis.',
+              date: 'Etapa Atual · Em andamento'
+            },
+            { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
+            { pending: true, icon: '🚀', title: 'Saiu para Entrega', desc: 'Objeto em trânsito para o seu endereço cadastrado.' },
+            { pending: true, icon: '🏠', title: 'Entregue', desc: 'Produto entregue com sucesso!' }
+          ];
 
           return (
             <div className="space-y-6 animate-fadeIn">
@@ -269,7 +306,7 @@ export default function TrackingPage() {
                     <p className="text-sm font-extrabold text-slate-800 mt-0.5">{orderData.orderId || orderData.trackingCode}</p>
                   </div>
 
-                  {orderData.status === 'aguardando_pagamento' || orderData.status === 'pendente' ? (
+                  {isPending ? (
                     <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold px-3 py-1 rounded-full">
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
                       Aguardando Pagamento
@@ -331,40 +368,7 @@ export default function TrackingPage() {
                   {/* Vertical Line */}
                   <div className="absolute left-[13px] top-2 bottom-2 w-0.5 bg-slate-100" />
 
-                  {orderData.status === 'aguardando_pagamento' || orderData.status === 'pendente' ? [
-                    {
-                      active: true, icon: '⚡',
-                      title: 'Pedido Gerado · Aguardando Pagamento PIX',
-                      desc: 'Aguardando a confirmação do pagamento via PIX para enviar para a fila de corte e produção.',
-                      date: fmtDateTime(createdAt)
-                    },
-                    { pending: true, icon: '✓', title: 'Pagamento Aprovado', desc: 'Aguardando confirmação bancária.' },
-                    { pending: true, icon: '⚙', title: 'Em Produção (Corte & Acabamento)', desc: 'Será cortado no molde exato do seu veículo assim que aprovado.' },
-                    { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
-                    { pending: true, icon: '🚀', title: 'Saiu para Entrega', desc: 'Objeto em trânsito para o seu endereço cadastrado.' },
-                    { pending: true, icon: '🏠', title: 'Entregue', desc: 'Produto entregue com sucesso!' }
-                  ] : [
-                    {
-                      done: true, icon: '✓',
-                      title: 'Pedido Confirmado',
-                      desc: 'Pedido registrado no sistema e enviado para a fila de produção.',
-                      date: fmtDateTime(createdAt)
-                    },
-                    {
-                      done: true, icon: '✓',
-                      title: 'Pagamento Aprovado',
-                      desc: 'Confirmação do pagamento recebida com sucesso.',
-                      date: fmtDateTime(step2Date)
-                    },
-                    {
-                      active: true, icon: '⚙',
-                      title: 'Em Produção (Corte & Acabamento)',
-                      desc: 'O tapete está sendo cortado no molde exato do seu veículo. Esta etapa leva de 3 a 5 dias úteis.',
-                      date: 'Etapa Atual · Em andamento'
-                    },
-                    { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
-                  ]
-                  ).map((item, i) => (
+                  {timelineItems.map((item, i) => (
                     <div key={i} className="relative">
                       {/* Circle Dot */}
                       <div className={`absolute -left-[29px] top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold z-10 ${
