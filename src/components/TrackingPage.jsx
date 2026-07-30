@@ -113,11 +113,15 @@ export default function TrackingPage() {
       {/* Black Top Header */}
       <header className="bg-black border-b border-slate-800 sticky top-0 z-50 shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <a href="/" className="flex items-center">
+          <a 
+            href="/" 
+            onClick={(e) => { e.preventDefault(); window.location.href = '/'; }} 
+            className="flex items-center cursor-pointer"
+          >
             <img 
               src="/logo-whats-cropped.png" 
               alt="CarTapetes Logo" 
-              className="h-10 sm:h-12 w-auto object-contain" 
+              className="h-10 sm:h-12 w-auto object-contain hover:opacity-90 transition" 
             />
           </a>
           <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-3 py-1.5 rounded-full shadow-inner">
