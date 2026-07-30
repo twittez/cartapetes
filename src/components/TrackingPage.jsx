@@ -109,11 +109,11 @@ export default function TrackingPage() {
     <div className="min-h-screen bg-[#f8fafc] font-sans">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50">
-        <div className="max-w-xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-lg font-extrabold text-gray-900">
-            🚗 Car<span className="text-[#FF5A00]">Tapetes</span>
-          </div>
-          <div className="text-xs text-gray-400 flex items-center gap-1">🔒 Compra Segura</div>
+        <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+          <a href="/" className="flex items-center">
+            <img src="/logo-whats-cropped.png" alt="CarTapetes Logo" className="h-10 sm:h-12 w-auto object-contain" />
+          </a>
+          <div className="text-xs text-gray-400 flex items-center gap-1 font-semibold">🔒 Compra Segura</div>
         </div>
       </header>
 
