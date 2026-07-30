@@ -983,7 +983,7 @@ export default function App() {
 
         <div className="text-center text-xs text-gray-400 mt-6 px-4 space-y-3">
           <div>CarTapetes Ltda.</div>
-          <div>CNPJ: 15.807.911/0001-00</div>
+          <div>CNPJ: 59.291.162/0001-79</div>
           <div>Endereço: Avenida Cristiano Machado 8966 Galpão 01, 02 e 03 Minaslândia Belo Horizonte MG 31812-112</div>
           
           <div className="flex items-center justify-center gap-2 text-gray-300 hover:text-white transition duration-150">
