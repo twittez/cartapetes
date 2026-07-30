@@ -363,9 +363,8 @@ export default function TrackingPage() {
                       date: 'Etapa Atual · Em andamento'
                     },
                     { pending: true, icon: '📦', title: 'Enviado para Transportadora', desc: 'Controle de qualidade realizado e entregue à transportadora.' },
-                    { pending: true, icon: '🚀', title: 'Saiu para Entrega', desc: 'Objeto em trânsito para o seu endereço cadastrado.' },
-                    { pending: true, icon: '🏠', title: 'Entregue', desc: 'Produto entregue com sucesso!' }
-                  ]}.map((item, i) => (
+                  ]
+                  ).map((item, i) => (
                     <div key={i} className="relative">
                       {/* Circle Dot */}
                       <div className={`absolute -left-[29px] top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold z-10 ${
