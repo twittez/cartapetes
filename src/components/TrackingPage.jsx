@@ -93,7 +93,7 @@ export default function TrackingPage() {
         email: 'joao.silva@exemplo.com',
         total: 131.00,
         createdAt: new Date().toISOString(),
-        status: 'em_producao',
+        status: 'aguardando_pagamento',
         pixCode: '00020101021226820014br.gov.bcb.pix2560pix.stone.com.br/pix/v2/34b486ad-20f9-4d8d-b31d-13ca4e6cb5ab5204000053039865405131.005802BR5913PAGAR.ME S.A.6014RIO DE JANEIRO'
       };
     }
