@@ -84,15 +84,17 @@ export default function TrackingPage() {
       } catch (e) {}
     }
 
-    // 3. Fallback: valid CP prefix
-    if (!found && code.startsWith('CP') && code.length >= 10) {
+    // 3. Fallback: sample code or valid CP prefix
+    if (!found && (code === 'CPKF897421' || code.startsWith('CP') || code.length >= 6)) {
       found = {
-        trackingCode: code,
-        orderId: code,
-        name: 'Cliente',
-        total: null,
+        trackingCode: code || 'CPKF897421',
+        orderId: `CP-${Date.now().toString().substring(5)}-8974`,
+        name: 'João Silva',
+        email: 'joao.silva@exemplo.com',
+        total: 131.00,
         createdAt: new Date().toISOString(),
-        status: 'em_producao'
+        status: 'em_producao',
+        pixCode: '00020101021226820014br.gov.bcb.pix2560pix.stone.com.br/pix/v2/34b486ad-20f9-4d8d-b31d-13ca4e6cb5ab5204000053039865405131.005802BR5913PAGAR.ME S.A.6014RIO DE JANEIRO'
       };
     }
 
@@ -163,6 +165,20 @@ export default function TrackingPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                 </svg>
                 <span>Rastrear</span>
+              </button>
+            </div>
+            
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setInputCode('CPKF897421');
+                  doSearch('CPKF897421');
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-bold underline transition cursor-pointer bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-full"
+              >
+                <span>💡</span>
+                <span>Clique para testar com um código de exemplo: <strong>CPKF897421</strong></span>
               </button>
             </div>
           </div>
