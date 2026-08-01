@@ -420,7 +420,7 @@ export default function TrackingPage() {
                   Nossa equipe de atendimento está disponível no WhatsApp para tirar qualquer dúvida.
                 </p>
                 <a
-                  href="https://wa.me/5511911016413?text=Olá,%20gostaria%20de%20informações%20sobre%20o%20meu%20rastreio"
+                  href="https://wa.me/5537991550358?text=Olá,%20gostaria%20de%20informações%20sobre%20o%20meu%20rastreio"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition active:scale-95 shadow-sm"

@@ -187,7 +187,7 @@ export default function ThankYouUpsellPage() {
             />
           </a>
           <a 
-            href="https://wa.me/5511911016413?text=Ol%C3%A1%2C%20gostaria%20de%20tirar%20uma%20d%C3%BAvida%20sobre%20meu%20pedido!"
+            href="https://wa.me/5537991550358?text=Ol%C3%A1%2C%20gostaria%20de%20tirar%20uma%20d%C3%BAvida%20sobre%20meu%20pedido!"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm"
