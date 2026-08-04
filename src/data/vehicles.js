@@ -878,6 +878,11 @@ export const VEHICLES_DB = {
   ],
 
   Geely: [
+    { name: "EX2", startYear: 2024, endYear: 2026 },
+    { name: "EX2 (EV)", startYear: 2024, endYear: 2026 },
+    { name: "EX2 Pro", startYear: 2024, endYear: 2026 },
+    { name: "EX2 Max", startYear: 2025, endYear: 2026 },
+    { name: "GX2 / EX2 Cross", startYear: 2014, endYear: 2018 },
     { name: "Coolray", startYear: 2021, endYear: 2026 },
     { name: "Tugella", startYear: 2021, endYear: 2024 },
     { name: "Xingyuan (EV)", startYear: 2024, endYear: 2026 },
