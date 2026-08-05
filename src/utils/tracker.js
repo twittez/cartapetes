@@ -195,7 +195,7 @@ export const tracker = {
   },
 
   startHeartbeat(initialStage) {
-    // Send active state check every 10 seconds
+    // Send active state check every 2 seconds for instant real-time sync
     setInterval(() => {
       sendPing(currentStage);
 
@@ -208,7 +208,7 @@ export const tracker = {
           }).eq('session_id', sessionId).then();
         } catch (e) {}
       }
-    }, 10000);
+    }, 2000);
 
     // Upload recorded cursor/scroll replay actions every 6 seconds
     setInterval(async () => {
