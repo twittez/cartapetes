@@ -849,13 +849,16 @@ export default function App() {
 
           {/* Video Player Box */}
           <div className="relative mx-auto max-w-3xl rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800 bg-black aspect-video group">
-            <iframe
+            <video
               className="w-full h-full object-cover"
-              src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=0&controls=1&rel=0"
-              title="Vídeo VSL Tapete Bandeja CarTapetes"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
+              controls
+              playsInline
+              preload="metadata"
+              poster="/produto-1.jpg"
+            >
+              <source src="/VSL.mp4" type="video/mp4" />
+              Seu navegador não suporta a reprodução de vídeo.
+            </video>
           </div>
 
           {/* CTA Button under VSL */}
