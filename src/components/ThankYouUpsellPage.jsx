@@ -372,7 +372,7 @@ export default function ThankYouUpsellPage() {
       <footer className="max-w-5xl mx-auto px-4 mt-16 pt-8 border-t border-gray-200 text-center text-xs text-gray-500 space-y-2">
         <div className="font-bold text-gray-700">CarTapetes Ltda.</div>
         <div>CNPJ: 59.291.162/0001-79</div>
-        <div>Endereço: Avenida Cristiano Machado 8966 Galpão 01, 02 e 03 Minaslândia Belo Horizonte MG 31812-112</div>
+        <div>Endereço: R. Irmã Amélia, 155 - Vila Prudente, São Paulo - SP, 03156-150</div>
         <div className="text-gray-400 pt-2">© {new Date().getFullYear()} CarTapetes. Todos os direitos reservados.</div>
       </footer>
 
