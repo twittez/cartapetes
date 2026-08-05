@@ -25,7 +25,7 @@ exports.handler = async (event, context) => {
 
   try {
     const body = JSON.parse(event.body);
-    const pixelId = '883537664402354';
+    const pixelId = '1932684814101405';
     // Lê o Token da variável de ambiente no Netlify para segurança máxima,
     // caindo para o Token fornecido como fallback.
     const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBSDEWS7pZAqsh9JFU9rZAT1zb8g99ZBPZAMAFNFNqTMFhXpfuT9kZA42e6YZBNSAx8mKmqFCFQkwNLujTAsM83xbKdbss4CM6miDNCdqXnb5gs1zanzZAlsVKUUzCDeH0kx4W9kaEGZCaQVGI2m2484ak0j7sKyZCkmJY0gpLNzJ17FTZC1Psu6VwZDZD';

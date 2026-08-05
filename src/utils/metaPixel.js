@@ -137,7 +137,7 @@ export async function trackMetaEvent(eventName, eventId, customData = {}, hashed
 
 // Fallback direto do lado do cliente para a API do Meta
 async function sendCapiDirectFallback(payload) {
-  const pixelId = '883537664402354';
+  const pixelId = '1932684814101405';
   const token = 'EAAK1b7DgzXcBSDEWS7pZAqsh9JFU9rZAT1zb8g99ZBPZAMAFNFNqTMFhXpfuT9kZA42e6YZBNSAx8mKmqFCFQkwNLujTAsM83xbKdbss4CM6miDNCdqXnb5gs1zanzZAlsVKUUzCDeH0kx4W9kaEGZCaQVGI2m2484ak0j7sKyZCkmJY0gpLNzJ17FTZC1Psu6VwZDZD';
   const url = `https://graph.facebook.com/v20.0/${pixelId}/events?access_token=${token}`;
 
