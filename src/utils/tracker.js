@@ -101,13 +101,23 @@ async function sendPing(stage = 'Loja', extra = {}) {
     ...extra
   };
 
-  // 1. Backend Server Ping (Render / Localhost)
+  // 1. Backend Server Ping (Render / Localhost - Não-bloqueante 0ms delay)
   try {
-    fetch(`${API_BASE}/api/tracker/ping`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(() => {});
+    const payloadStr = JSON.stringify(payload);
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      const blob = new Blob([payloadStr], { type: 'application/json' });
+      navigator.sendBeacon(`${API_BASE}/api/tracker/ping`, blob);
+    } else {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 1000);
+      fetch(`${API_BASE}/api/tracker/ping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadStr,
+        signal: controller.signal,
+        keepalive: true
+      }).catch(() => {});
+    }
   } catch (e) {}
 
   // 2. Supabase Realtime Online Leads Table

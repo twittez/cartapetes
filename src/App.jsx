@@ -221,34 +221,24 @@ export default function App() {
 
     const fetchLocation = async () => {
       try {
-        const response = await fetch('https://ipapi.co/json/');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        const response = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (response.ok) {
           const data = await response.json();
-          if (data.city && data.region_code) {
-            setLocationText(`${data.city} - ${data.region_code}`);
-            setFreightCity(data.city);
-            setFreightState(data.region_code);
-            setFreightInfo(getFreightInfo(data.region_code));
-            return;
+          if (data.ip) {
+            setFreightCity('São Paulo');
+            setFreightState('SP');
+            setFreightInfo(getFreightInfo('SP'));
+            setLocationText('São Paulo - SP');
           }
         }
       } catch (e) {
-        console.log('Erro no ipapi.co, tentando ipwhois...');
-      }
-
-      try {
-        const response = await fetch('https://ipwhois.app/json/');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.city && data.region_code) {
-            setLocationText(`${data.city} - ${data.region_code}`);
-            setFreightCity(data.city);
-            setFreightState(data.region_code);
-            setFreightInfo(getFreightInfo(data.region_code));
-          }
-        }
-      } catch (e) {
-        console.log('Erro ao buscar localização.');
+        setFreightCity('São Paulo');
+        setFreightState('SP');
+        setFreightInfo(getFreightInfo('SP'));
+        setLocationText('São Paulo - SP');
       }
     };
     fetchLocation();
