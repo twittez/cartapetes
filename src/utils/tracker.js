@@ -6,6 +6,14 @@ if (!sessionId) {
   sessionStorage.setItem('tracker_session_id', sessionId);
 }
 
+const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? 'http://localhost:3000'
+  : 'https://wepink-checkout.onrender.com';
+
+let cachedGeo = { ip: null, pais: 'Brasil', estado: 'São Paulo', cidade: 'São Paulo' };
+let cachedLead = { nome: null, email: null };
+let currentStage = 'Loja';
+
 // OS, Browser, Device parsing
 function getOS() {
   const ua = navigator.userAgent;
@@ -57,42 +65,20 @@ function getTrafficOrigin() {
   return 'Referência';
 }
 
-// IP/Geo lookup
+// IP/Geo lookup rápido e com timeout seguro de 3s
 async function fetchGeoData() {
   try {
-    const response = await fetch('https://api.ipify.org?format=json');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (response.ok) {
       const data = await response.json();
       const ip = data.ip;
-      try {
-        const geoRes = await fetch(`https://ipapi.co/${ip}/json/`);
-        if (geoRes.ok) {
-          const geoData = await geoRes.json();
-          return {
-            ip: ip,
-            pais: geoData.country_name || 'Brasil',
-            estado: geoData.region || 'São Paulo',
-            cidade: geoData.city || 'São Paulo'
-          };
-        }
-      } catch (e) {}
       return { ip, pais: 'Brasil', estado: 'São Paulo', cidade: 'São Paulo' };
     }
-  } catch (err) {
-    try {
-      const responseFallback = await fetch('https://ipapi.co/json/');
-      if (responseFallback.ok) {
-        const data = await responseFallback.json();
-        return {
-          ip: data.ip || '127.0.0.1',
-          pais: data.country_name || 'Brasil',
-          estado: data.region || 'São Paulo',
-          cidade: data.city || 'São Paulo'
-        };
-      }
-    } catch (e) {}
-  }
-  return { ip: '127.0.0.1', pais: 'Brasil', estado: 'São Paulo', cidade: 'São Paulo' };
+  } catch (err) {}
+  return { ip: null, pais: 'Brasil', estado: 'São Paulo', cidade: 'São Paulo' };
 }
 
 // Global buffer for recording mouse movements/events
@@ -100,111 +86,128 @@ let eventQueue = [];
 let lastMousePos = { x: 0, y: 0 };
 let trackStartTime = Date.now();
 
+// Dispara ping para o servidor backend e para o Supabase
+async function sendPing(stage = 'Loja', extra = {}) {
+  const payload = {
+    session_id: sessionId,
+    ip: cachedGeo.ip || null,
+    cidade: cachedGeo.cidade || 'São Paulo',
+    estado: cachedGeo.estado || 'SP',
+    dispositivo: getDevice(),
+    status_etapa: stage || currentStage,
+    url_atual: window.location.href,
+    nome: cachedLead.nome || null,
+    email: cachedLead.email || null,
+    ...extra
+  };
+
+  // 1. Backend Server Ping (Render / Localhost)
+  try {
+    fetch(`${API_BASE}/api/tracker/ping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (e) {}
+
+  // 2. Supabase Realtime Online Leads Table
+  if (supabase) {
+    try {
+      supabase.from('online_leads').upsert([{
+        session_id: payload.session_id,
+        ip: payload.ip,
+        cidade: payload.cidade,
+        estado: payload.estado,
+        nome: payload.nome,
+        email: payload.email,
+        status_etapa: payload.status_etapa,
+        dispositivo: payload.dispositivo,
+        url_atual: payload.url_atual,
+        last_seen: new Date().toISOString()
+      }], { onConflict: 'session_id' }).then();
+    } catch (e) {}
+  }
+}
+
 export const tracker = {
   initialized: false,
 
   async init(initialPage = 'Loja') {
-    if (this.initialized || !supabase) return;
+    if (this.initialized) return;
     this.initialized = true;
+    currentStage = initialPage;
 
-    try {
-      const geo = await fetchGeoData();
-      const utms = getUTMData();
-      const origin = getTrafficOrigin();
+    // Disparo imediato (0ms delay) para o painel registrar o lead na hora
+    sendPing(initialPage);
 
-      const sessionData = {
-        session_id: sessionId,
-        ip: geo.ip,
-        pais: geo.pais,
-        estado: geo.estado,
-        cidade: geo.cidade,
-        dispositivo: getDevice(),
-        navegador: getBrowser(),
-        so: getOS(),
-        screen_resolution: `${window.innerWidth}x${window.innerHeight}`,
-        origem_trafego: origin,
-        utm_source: utms.source,
-        utm_medium: utms.medium,
-        utm_campaign: utms.campaign,
-        url_entrada: window.location.href,
-        rejeitado: true, // Default to true, will update to false on action
-        last_active: new Date().toISOString()
-      };
+    // Inicia ouvintes de evento e heartbeat constante
+    this.startHeartbeat(initialPage);
+    this.startEventListeners(initialPage);
 
-      // 1. Save or update visitor session
-      const { error: sessErr } = await supabase
-        .from('visitor_sessions')
-        .upsert([sessionData], { onConflict: 'session_id' });
+    // Busca IP e localização em segundo plano de forma não-bloqueante
+    fetchGeoData().then((geo) => {
+      cachedGeo = geo;
+      sendPing(currentStage);
 
-      if (sessErr) {
-        console.error('[Tracker] Erro ao registrar sessão:', sessErr.message);
+      if (supabase) {
+        const utms = getUTMData();
+        const origin = getTrafficOrigin();
+        supabase.from('visitor_sessions').upsert([{
+          session_id: sessionId,
+          ip: geo.ip,
+          pais: geo.pais,
+          estado: geo.estado,
+          cidade: geo.cidade,
+          dispositivo: getDevice(),
+          navegador: getBrowser(),
+          so: getOS(),
+          screen_resolution: `${window.innerWidth}x${window.innerHeight}`,
+          origem_trafego: origin,
+          utm_source: utms.source,
+          utm_medium: utms.medium,
+          utm_campaign: utms.campaign,
+          url_entrada: window.location.href,
+          rejeitado: true,
+          last_active: new Date().toISOString()
+        }], { onConflict: 'session_id' }).then();
       }
-
-      // 2. Log to online_leads table com IP real do lead!
-      await supabase.from('online_leads').upsert([{
-        session_id: sessionId,
-        ip: geo.ip,
-        cidade: geo.cidade,
-        estado: geo.estado,
-        nome: null,
-        email: null,
-        status_etapa: initialPage,
-        dispositivo: getDevice(),
-        url_atual: window.location.href,
-        last_seen: new Date().toISOString()
-      }], { onConflict: 'session_id' });
-
-      // Start periodic updates (heartbeat + replay upload)
-      this.startHeartbeat(initialPage);
-      this.startEventListeners(initialPage);
-
-    } catch (err) {
-      console.error('[Tracker] Falha na inicialização do tracking:', err);
-    }
+    }).catch(() => {});
   },
 
   updateLeadInfo(nome, email) {
-    if (!supabase) return;
-    supabase.from('online_leads').update({
-      nome,
-      email,
-      last_seen: new Date().toISOString()
-    }).eq('session_id', sessionId).then();
+    cachedLead.nome = nome || cachedLead.nome;
+    cachedLead.email = email || cachedLead.email;
+    sendPing(currentStage);
   },
 
   async updateStage(stageName) {
-    if (!supabase) return;
-    // Mark session as non-bounced (rejeitado = false) on step progress
-    await supabase.from('visitor_sessions').update({
-      rejeitado: false,
-      last_active: new Date().toISOString()
-    }).eq('session_id', sessionId);
+    currentStage = stageName;
+    sendPing(stageName);
 
-    await supabase.from('online_leads').update({
-      status_etapa: stageName,
-      url_atual: window.location.href,
-      last_seen: new Date().toISOString()
-    }).eq('session_id', sessionId);
+    if (supabase) {
+      try {
+        supabase.from('visitor_sessions').update({
+          rejeitado: false,
+          last_active: new Date().toISOString()
+        }).eq('session_id', sessionId).then();
+      } catch (e) {}
+    }
   },
 
-  startHeartbeat(currentStage) {
+  startHeartbeat(initialStage) {
     // Send active state check every 10 seconds
-    setInterval(async () => {
-      if (!supabase) return;
-      const now = new Date().toISOString();
-      
-      // Update session activity
-      const timeElapsed = Math.floor((Date.now() - trackStartTime) / 1000);
-      await supabase.from('visitor_sessions').update({
-        duracao_segundos: timeElapsed,
-        last_active: now
-      }).eq('session_id', sessionId);
+    setInterval(() => {
+      sendPing(currentStage);
 
-      // Update online lead state
-      await supabase.from('online_leads').update({
-        last_seen: now
-      }).eq('session_id', sessionId);
-
+      if (supabase) {
+        try {
+          const timeElapsed = Math.floor((Date.now() - trackStartTime) / 1000);
+          supabase.from('visitor_sessions').update({
+            duracao_segundos: timeElapsed,
+            last_active: new Date().toISOString()
+          }).eq('session_id', sessionId).then();
+        } catch (e) {}
+      }
     }, 10000);
 
     // Upload recorded cursor/scroll replay actions every 6 seconds
@@ -214,10 +217,12 @@ export const tracker = {
       const eventsToUpload = [...eventQueue];
       eventQueue = []; // Clear queue immediately to avoid race conditions
 
-      await supabase.from('session_replays').insert([{
-        session_id: sessionId,
-        events: eventsToUpload
-      }]);
+      try {
+        supabase.from('session_replays').insert([{
+          session_id: sessionId,
+          events: eventsToUpload
+        }]).then();
+      } catch (e) {}
     }, 6000);
   },
 
@@ -226,7 +231,7 @@ export const tracker = {
     let sampleTimer = 0;
     window.addEventListener('mousemove', (e) => {
       const now = Date.now();
-      if (now - sampleTimer > 250) { // Limit sampling to 250ms
+      if (now - sampleTimer > 250) {
         sampleTimer = now;
         lastMousePos = { x: e.clientX, y: e.clientY };
         eventQueue.push({
@@ -242,9 +247,8 @@ export const tracker = {
     window.addEventListener('click', async (e) => {
       const now = Date.now();
       const xPct = parseFloat(((e.clientX / window.innerWidth) * 100).toFixed(2));
-      const yPx = e.pageY; // pageY includes vertical scroll level
+      const yPx = e.pageY;
 
-      // Add to replay log
       eventQueue.push({
         type: 'click',
         x: e.clientX,
@@ -253,15 +257,16 @@ export const tracker = {
         time: now - trackStartTime
       });
 
-      // Save to global heatmap_clicks table
       if (supabase) {
-        await supabase.from('heatmap_clicks').insert([{
-          session_id: sessionId,
-          page_url: window.location.pathname,
-          x_pct: xPct,
-          y_px: yPx,
-          screen_width: window.innerWidth
-        }]);
+        try {
+          supabase.from('heatmap_clicks').insert([{
+            session_id: sessionId,
+            page_url: window.location.pathname,
+            x_pct: xPct,
+            y_px: yPx,
+            screen_width: window.innerWidth
+          }]).then();
+        } catch (e) {}
       }
     });
 
