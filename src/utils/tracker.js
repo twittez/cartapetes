@@ -60,18 +60,37 @@ function getTrafficOrigin() {
 // IP/Geo lookup
 async function fetchGeoData() {
   try {
-    const response = await fetch('https://ipapi.co/json/');
+    const response = await fetch('https://api.ipify.org?format=json');
     if (response.ok) {
       const data = await response.json();
-      return {
-        ip: data.ip || '127.0.0.1',
-        pais: data.country_name || 'Brasil',
-        estado: data.region || 'São Paulo',
-        cidade: data.city || 'São Paulo'
-      };
+      const ip = data.ip;
+      try {
+        const geoRes = await fetch(`https://ipapi.co/${ip}/json/`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          return {
+            ip: ip,
+            pais: geoData.country_name || 'Brasil',
+            estado: geoData.region || 'São Paulo',
+            cidade: geoData.city || 'São Paulo'
+          };
+        }
+      } catch (e) {}
+      return { ip, pais: 'Brasil', estado: 'São Paulo', cidade: 'São Paulo' };
     }
   } catch (err) {
-    console.warn('[Tracker] Falha ao obter geolocalização. Usando dados padrão.', err);
+    try {
+      const responseFallback = await fetch('https://ipapi.co/json/');
+      if (responseFallback.ok) {
+        const data = await responseFallback.json();
+        return {
+          ip: data.ip || '127.0.0.1',
+          pais: data.country_name || 'Brasil',
+          estado: data.region || 'São Paulo',
+          cidade: data.city || 'São Paulo'
+        };
+      }
+    } catch (e) {}
   }
   return { ip: '127.0.0.1', pais: 'Brasil', estado: 'São Paulo', cidade: 'São Paulo' };
 }
@@ -121,9 +140,12 @@ export const tracker = {
         console.error('[Tracker] Erro ao registrar sessão:', sessErr.message);
       }
 
-      // 2. Log to online_leads table
+      // 2. Log to online_leads table com IP real do lead!
       await supabase.from('online_leads').upsert([{
         session_id: sessionId,
+        ip: geo.ip,
+        cidade: geo.cidade,
+        estado: geo.estado,
         nome: null,
         email: null,
         status_etapa: initialPage,
