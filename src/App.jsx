@@ -831,6 +831,50 @@ export default function App() {
         </div>
       </section>
 
+      {/* 6.5 VSL Video Section */}
+      <section className="bg-gray-900 text-white py-14 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-gray-900 to-black/50 pointer-events-none"></div>
+        <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FF5A00]/20 text-[#FF5A00] text-xs font-bold uppercase tracking-wider mb-4 border border-[#FF5A00]/30 shadow-sm">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A00] animate-pulse"></span>
+            VÍDEO DEMONSTRATIVO (VSL)
+          </span>
+
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight mb-3">
+            Veja em Detalhes a Proteção do Tapete Bandeja Premium
+          </h2>
+          <p className="text-gray-300 text-sm sm:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
+            Assista ao vídeo abaixo e confira o encaixe sob medida, a resistência da borracha impermeável e o acabamento exclusivo do nosso kit.
+          </p>
+
+          {/* Video Player Box */}
+          <div className="relative mx-auto max-w-3xl rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800 bg-black aspect-video group">
+            <iframe
+              className="w-full h-full object-cover"
+              src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=0&controls=1&rel=0"
+              title="Vídeo VSL Tapete Bandeja CarTapetes"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+
+          {/* CTA Button under VSL */}
+          <div className="mt-8">
+            <button
+              onClick={() => {
+                document.getElementById('produto')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="inline-flex items-center justify-center gap-2 bg-[#FF5A00] hover:bg-[#e04f00] text-white font-extrabold text-base sm:text-lg px-8 py-4 rounded-xl shadow-xl hover:shadow-[#FF5A00]/30 transition transform active:scale-95 cursor-pointer"
+            >
+              <span>GARANTIR MEU TAPETE SOB MEDIDA</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* 7. Reclame Aqui Badge Section */}
       <section className="bg-white py-14">
         <div className="max-w-lg mx-auto px-4 text-center">
