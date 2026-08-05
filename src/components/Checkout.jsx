@@ -596,17 +596,23 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         trackingCode: tCode
       };
 
-      fetch('/.netlify/functions/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pixPayload)
-      }).catch(() => {});
+      const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+        ? 'http://localhost:3000'
+        : 'https://wepink-checkout.onrender.com';
 
-      fetch('https://wepink-checkout.onrender.com/api/checkout-pix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pixPayload)
-      }).catch(() => {});
+      const sendPixTarget = [
+        '/.netlify/functions/checkout',
+        API_BASE + '/api/checkout-pix',
+        'https://wepink-checkout.onrender.com/api/checkout-pix'
+      ];
+
+      sendPixTarget.forEach(url => {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pixPayload)
+        }).catch(() => {});
+      });
 
       setStep(4);
     } catch (err) {
