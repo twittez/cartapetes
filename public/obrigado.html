@@ -161,7 +161,26 @@
           await sendCapiDirectFallback(capiPayload);
         }
 
-        // 5. Remove os dados para não duplicar se der refresh na página
+        // 5. Envia o ping de estágio para o painel admin
+        try {
+          const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3000'
+            : 'https://wepink-checkout.onrender.com';
+          const sessId = sessionStorage.getItem('tracker_session_id') || ('sess_' + Math.random().toString(36).substr(2, 9));
+          fetch(API_BASE + '/api/tracker/ping', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessId,
+              status_etapa: 'Página de Obrigado',
+              url_atual: window.location.href,
+              nome: purchaseData?.nome || null,
+              email: purchaseData?.email || null
+            })
+          }).catch(() => {});
+        } catch(e) {}
+
+        // 6. Remove os dados para não duplicar se der refresh na página
         localStorage.removeItem('cartapetes_purchase_data');
       } catch (err) {
         console.error('Erro ao processar tracking de Purchase:', err);
