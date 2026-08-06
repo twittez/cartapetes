@@ -66,17 +66,23 @@ exports.handler = async (event, context) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Invalid payload' }) };
     }
 
-    const rawStatus = txnData.status || '';
+    const rawStatus = txnData.status || body.status || body.event || body.type || '';
     const status = rawStatus.toLowerCase();
-    const transactionId = String(txnData.id || body.objectId || '');
+    const eventType = (body.type || body.event || '').toLowerCase();
+    const transactionId = String(txnData.id || body.objectId || body.id || '');
 
-    console.log(`[Beehive Webhook] Transação ${transactionId} – Status: ${status}`);
+    console.log(`[Beehive Webhook] Transação ${transactionId} – Status: ${status}, Event: ${eventType}`);
 
-    // Processa tanto pagos quanto pendentes
-    const isPaid = status === 'paid';
-    const isPending = status === 'waiting_payment' || status === 'pending' || status === 'pendente';
+    // Processa tanto pagos quanto pendentes (capturando qualquer variação de status pago)
+    const isPaid = status === 'paid' || status === 'approved' || status === 'pago' || status === 'completed' || 
+                   status.includes('paid') || status.includes('aprovado') ||
+                   eventType.includes('paid') || eventType.includes('approved') || eventType.includes('pago');
+                   
+    const isPending = !isPaid && (status === 'waiting_payment' || status === 'pending' || status === 'pendente' || 
+                       status.includes('pending') || status.includes('waiting') || eventType.includes('created'));
+
     if (!isPaid && !isPending) {
-      console.log(`[Beehive Webhook] Status '${status}' ignorado — sem ação.`);
+      console.log(`[Beehive Webhook] Status '${status}' (Event: '${eventType}') ignorado — sem ação.`);
       return {
         statusCode: 200,
         body: JSON.stringify({ message: `Status ${status} – no event sent` })
