@@ -119,7 +119,7 @@ exports.handler = async (event, context) => {
     const amountInCents = txnData.amount || 0;
     const value    = amountInCents / 100; // centavos → reais
 
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace('T', ' ').substring(0, 19);
 
     // 3. Notificar UTMify
     const utmifyToken = process.env.UTMIFY_TOKEN || 'cSOZLc4zjXQY48Nz6Mlk35KQqSXlLOiV53S8';

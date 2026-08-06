@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
     console.log('[UTMify Function] Request body:', JSON.stringify(body, null, 2));
 
     const token = process.env.UTMIFY_TOKEN || 'cSOZLc4zjXQY48Nz6Mlk35KQqSXlLOiV53S8';
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace('T', ' ').substring(0, 19);
 
     const amountInCents = body.amountInCents || Math.round((body.value || 131) * 100);
     const mappedStatus = mapStatus(body.status);
