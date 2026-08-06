@@ -72,8 +72,11 @@ exports.handler = async (event, context) => {
 
     console.log(`[Beehive Webhook] Transação ${transactionId} – Status: ${status}`);
 
-    // Apenas processa se pago
-    if (status !== 'paid') {
+    // Processa tanto pagos quanto pendentes
+    const isPaid = status === 'paid';
+    const isPending = status === 'waiting_payment' || status === 'pending' || status === 'pendente';
+    if (!isPaid && !isPending) {
+      console.log(`[Beehive Webhook] Status '${status}' ignorado — sem ação.`);
       return {
         statusCode: 200,
         body: JSON.stringify({ message: `Status ${status} – no event sent` })
@@ -113,14 +116,15 @@ exports.handler = async (event, context) => {
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     // 3. Notificar UTMify
-    const utmifyToken = process.env.UTMIFY_TOKEN || 'HNIuD0M6zetaINZlNEBZQAzabtvFovXyt8Ui';
+    const utmifyToken = process.env.UTMIFY_TOKEN || 'cSOZLc4zjXQY48Nz6Mlk35KQqSXlLOiV53S8';
+    const utmifyStatus = isPaid ? 'paid' : 'waiting_payment';
     const utmifyPayload = {
       orderId: metadata.order_id || `CP-${transactionId}`,
       platform: 'Beehive',
       paymentMethod: 'pix',
-      status: 'paid',
+      status: utmifyStatus,
       createdAt: nowStr,
-      approvedDate: nowStr,
+      approvedDate: isPaid ? nowStr : null,
       refundedAt: null,
       customer: {
         name: nome,
@@ -156,11 +160,27 @@ exports.handler = async (event, context) => {
     };
 
     try {
-      console.log(`[Beehive Webhook] Enviando pedido para UTMify (Order ID: ${utmifyPayload.orderId})...`);
+      console.log(`[Beehive Webhook] Enviando pedido (${utmifyStatus}) para UTMify...`);
       const utmRes = await postToUtmify(utmifyPayload, utmifyToken);
       console.log(`[Beehive Webhook] Resposta UTMify (${utmRes.status}):`, utmRes.body);
     } catch (utmErr) {
       console.error('[Beehive Webhook] Erro ao disparar para UTMify:', utmErr.message);
+    }
+
+    // 3b. Notificar painel wepink-checkout quando pago
+    if (isPaid) {
+      try {
+        await fetch('https://wepink-checkout.onrender.com/api/webhook/winnerpay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: { id: transactionId, status: 'paid' }
+          })
+        });
+        console.log(`[Beehive Webhook] Painel notificado → transação ${transactionId} PAGO`);
+      } catch (e) {
+        console.warn('[Beehive Webhook] Falha ao notificar painel:', e.message);
+      }
     }
 
     // 4. Hash para Meta CAPI
