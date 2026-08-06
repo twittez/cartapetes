@@ -132,8 +132,10 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   useEffect(() => {
     window.scrollTo(0, 0);
     
-    if (!initiatedRef.current) {
+    const sessionIcKey = `cartapetes_ic_fired_${kit || 'default'}`;
+    if (!initiatedRef.current && !sessionStorage.getItem(sessionIcKey)) {
       initiatedRef.current = true;
+      sessionStorage.setItem(sessionIcKey, 'true');
       const eventId = generateEventId();
       const kitId = kit === 'basico' ? 'kit_basico' : 'kit_premium';
       trackMetaEvent('InitiateCheckout', eventId, {
@@ -574,39 +576,6 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       } catch (e) {}
 
       saveLeadToSupabase('pendente', String(data.id));
-
-      const pixPayload = {
-        orderId,
-        transaction_id: String(data.id),
-        status: 'pendente',
-        paymentMethod: 'pix',
-        lead: {
-          nome: formData.nome,
-          email: formData.email,
-          cpf: formData.cpf,
-          telefone: formData.telefone,
-          cep: formData.cep,
-          rua: formData.rua,
-          numero: formData.numero,
-          complemento: formData.complemento,
-          bairro: formData.bairro,
-          cidade: formData.cidade,
-          estado: formData.estado
-        },
-        totalPrice: finalPrice,
-        trackingCode: tCode
-      };
-
-      // Envia apenas para o Render (unico destino) — evita duplicação de pedidos
-      const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-        ? 'http://localhost:3000'
-        : 'https://wepink-checkout.onrender.com';
-
-      fetch(API_BASE + '/api/checkout-pix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pixPayload)
-      }).catch(() => {});
 
       setStep(4);
     } catch (err) {
