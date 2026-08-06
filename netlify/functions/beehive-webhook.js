@@ -176,7 +176,7 @@ exports.handler = async (event, context) => {
     // 3b. Notificar painel wepink-checkout quando pago
     if (isPaid) {
       try {
-        await fetch('https://wepink-checkout.onrender.com/api/webhook/winnerpay', {
+        await fetch('https://wepink-checkout.onrender.com/api/webhook/beehive', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
