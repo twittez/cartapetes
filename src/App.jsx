@@ -7,6 +7,7 @@ import Ticker from './components/Ticker';
 import ThankYouUpsellPage from './components/ThankYouUpsellPage';
 import ReviewsSection from './components/ReviewsSection';
 import TrackingPage from './components/TrackingPage';
+import BlockedPage from './components/BlockedPage';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
 import { tracker } from './utils/tracker';
@@ -190,6 +191,7 @@ export default function App() {
   const [toastKey, setToastKey] = useState(0);
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 });
   const [viewersCount] = useState(() => Math.floor(Math.random() * 30) + 38);
+  const [isBlocked, setIsBlocked] = useState(false); // controle de bloqueio por IP
 
   // Sync state stage to tracker
   useEffect(() => {
@@ -321,6 +323,7 @@ export default function App() {
 
 
   if (currentPath === '/checkout') {
+    if (isBlocked) return <BlockedPage />;
     return (
       <Checkout
         vehicle={effectiveVehicle}
@@ -330,6 +333,7 @@ export default function App() {
           setAddedUpsells([]);
           navigateTo('/');
         }}
+        onBlock={() => setIsBlocked(true)}
       />
     );
   }

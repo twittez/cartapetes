@@ -36,6 +36,7 @@ export function generateOrderId() {
  * @param {boolean} params.perfumeUpsell - Upsell de perfume
  * @param {string} params.paymentMethod - Método de pagamento
  * @param {string} params.trackingCode - Código de rastreio
+ * @param {string} [params.clientIp] - IP do cliente (injetado pelo beehive-pix.js)
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function createPendingOrder({
@@ -49,6 +50,7 @@ export async function createPendingOrder({
   perfumeUpsell = false,
   paymentMethod = 'pix',
   trackingCode = '',
+  clientIp = null,
 }) {
   const utms = getStoredUTMs();
   const effectiveTxId = transactionId || orderId;
@@ -83,6 +85,8 @@ export async function createPendingOrder({
     utm_term: utms.utm_term || null,
     fbclid: utms.fbclid || null,
     gclid: utms.gclid || null,
+    // IP do cliente (para controle de fraude)
+    client_ip: clientIp || null,
   };
 
   if (!supabase) {

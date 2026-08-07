@@ -6,7 +6,7 @@ import { captureUTMs, getStoredUTMs } from '../tracking/utmCapture';
 import { initiateCheckout as fbInitiateCheckout, purchase as fbPurchase } from '../tracking/facebookPixel';
 import { createPendingOrder, updateOrderStatus, generateOrderId } from '../services/orderService';
 
-export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
+export default function Checkout({ vehicle, kit, upsellItems = [], onClose, onBlock }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
   const [paymentMethod, setPaymentMethod] = useState('pix'); // 'pix', 'card'
   const [showMobileSummary, setShowMobileSummary] = useState(false);
@@ -131,22 +131,41 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
   const initiatedRef = useRef(false);
   const pixPaidConfirmedRef = useRef(false); // guard para evitar confirmar pagamento 2x
+  const clientIpRef = useRef(null); // IP do cliente (retornado pelo beehive-pix)
 
-  // Captura UTMs ao montar e dispara InitiateCheckout 1x
+  // Captura UTMs e verifica bloqueio por IP ao montar
   useEffect(() => {
     window.scrollTo(0, 0);
     captureUTMs();
 
-    const kitId = kit === 'basico' ? 'kit_basico' : 'kit_premium';
-    if (!initiatedRef.current) {
-      initiatedRef.current = true;
-      // Usa o novo módulo de Pixel que já cuida da deduplicação por sessionStorage
-      fbInitiateCheckout(kitId, finalPrice, vehicle || 'Carro');
-    }
+    // Verificação de IP: chama ip-guard antes de exibir o checkout
+    const checkIp = async () => {
+      try {
+        const res = await fetch('/.netlify/functions/ip-guard', { method: 'GET' });
+        const data = await res.json();
+        clientIpRef.current = data.ip || null;
+        if (data.blocked) {
+          console.warn('[Checkout] IP bloqueado pelo ip-guard:', data);
+          if (onBlock) onBlock();
+          return;
+        }
+      } catch (e) {
+        console.warn('[Checkout] ip-guard indisponível — continuando normalmente:', e.message);
+      }
+
+      // Só dispara InitiateCheckout se não for bloqueado
+      const kitId = kit === 'basico' ? 'kit_basico' : 'kit_premium';
+      if (!initiatedRef.current) {
+        initiatedRef.current = true;
+        fbInitiateCheckout(kitId, finalPrice, vehicle || 'Carro');
+      }
+    };
+
+    checkIp();
   }, []);
 
   // Salva pedido pendente no Supabase (única chamada, sem duplicação)
-  const savePendingOrderOnce = async (txId) => {
+  const savePendingOrderOnce = async (txId, clientIp = null) => {
     const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
     await createPendingOrder({
       orderId: txId,
@@ -159,6 +178,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       perfumeUpsell,
       paymentMethod,
       trackingCode: tCode,
+      clientIp: clientIp || clientIpRef.current,
     });
   };
 
