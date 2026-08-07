@@ -435,7 +435,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose, onBl
           user_email: formData.email,
           order_id: orderId,
           checkout_url: postbackOrigin + '/checkout',
-          shop_url: 'https://cartapetes.com.br'
+          shop_url: 'https://cartapetes.com.br',
+          ...getStoredUTMs()
         },
         postbackUrl: postbackOrigin + '/beehive-webhook',
         pix: { expiresInSeconds: 1800 }
