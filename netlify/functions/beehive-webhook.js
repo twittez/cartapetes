@@ -1,15 +1,10 @@
 /**
  * beehive-webhook.js
- * ÚNICA responsabilidade: receber confirmações de pagamento da Beehive.
+ * Recebe notificações de status de pagamento da Beehive.
  *
  * REGRAS:
- * - SÓ processa status PAID (nunca pending)
- * - Atualiza Supabase: status → pago
- * - Lê UTMs do Supabase antes de enviar para UTMify
- * - Dispara Purchase para Meta CAPI (com dedup event_id)
- * - Dispara Purchase para UTMify com UTMs reais do pedido
- * - NÃO cria pedidos novos
- * - NÃO dispara waiting_payment para nada
+ * - Em status PAID: Atualiza Supabase (status=pago), envia Purchase para Meta CAPI e envia paid para UTMify (com UTMs reais).
+ * - Em status PENDING: Envia waiting_payment para UTMify com UTMs reais do pedido.
  */
 
 const crypto = require('crypto');
@@ -67,18 +62,14 @@ exports.handler = async (event) => {
 
     console.log(`[Beehive Webhook] TX: ${transactionId} | Status: ${rawStatus} | Event: ${eventType}`);
 
-    // ✅ GUARD: Só processa status PAGO — jamais pending/waiting
     const isPaid = rawStatus === 'paid' || rawStatus === 'approved' || rawStatus === 'pago' ||
                    rawStatus === 'completed' || rawStatus.includes('paid') ||
                    eventType.includes('paid') || eventType.includes('approved');
 
-    if (!isPaid) {
-      console.log(`[Beehive Webhook] Status '${rawStatus}' ignorado — apenas PAID é processado.`);
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ message: `Status ${rawStatus} ignored` }) };
-    }
+    const mappedStatus = isPaid ? 'paid' : 'waiting_payment';
 
     // ─────────────────────────────────────────
-    // 1. Atualizar Supabase: status → pago
+    // 1. Buscar UTMs e dados do pedido no Supabase
     // ─────────────────────────────────────────
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -89,18 +80,19 @@ exports.handler = async (event) => {
         const { createClient } = require('@supabase/supabase-js');
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const { error: updateError } = await supabase
-          .from('leads')
-          .update({ status: 'pago' })
-          .eq('transaction_id', transactionId);
+        if (isPaid) {
+          const { error: updateError } = await supabase
+            .from('leads')
+            .update({ status: 'pago' })
+            .eq('transaction_id', transactionId);
 
-        if (updateError) {
-          console.error('[Beehive Webhook] Erro ao atualizar Supabase:', updateError.message);
-        } else {
-          console.log(`[Beehive Webhook] ✅ Lead ${transactionId} → PAGO no Supabase`);
+          if (updateError) {
+            console.error('[Beehive Webhook] Erro ao atualizar Supabase:', updateError.message);
+          } else {
+            console.log(`[Beehive Webhook] ✅ Lead ${transactionId} → PAGO no Supabase`);
+          }
         }
 
-        // Busca UTMs salvas no pedido para usar no UTMify
         const { data: leadRow } = await supabase
           .from('leads')
           .select('utm_source, utm_medium, utm_campaign, utm_content, utm_term, fbclid, gclid')
@@ -117,7 +109,7 @@ exports.handler = async (event) => {
     }
 
     // ─────────────────────────────────────────
-    // 2. Extrair dados do cliente
+    // 2. Extrair dados do cliente e valor
     // ─────────────────────────────────────────
     const customer = txnData.customer || {};
     const metadata = txnData.metadata || {};
@@ -125,23 +117,26 @@ exports.handler = async (event) => {
     const email = customer.email || '';
     const telefone = (customer.phone || '').replace(/\D/g, '');
     const documentNum = (customer.document?.number || '').replace(/\D/g, '');
-    const amountInCents = txnData.amount || 0;
+    
+    // Suporte flexível para cálculo do valor em centavos
+    const rawAmt = txnData.amount || txnData.value || txnData.total || 0;
+    const amountInCents = rawAmt > 1000 ? Math.round(rawAmt) : Math.round(rawAmt * 100);
     const value = amountInCents / 100;
 
     const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' })
       .replace('T', ' ').substring(0, 19);
 
     // ─────────────────────────────────────────
-    // 3. Disparar Purchase para UTMify (com UTMs reais)
+    // 3. Disparar para UTMify (waiting_payment ou paid)
     // ─────────────────────────────────────────
     const utmifyToken = process.env.UTMIFY_TOKEN || 'cSOZLc4zjXQY48Nz6Mlk35KQqSXlLOiV53S8';
     const utmifyPayload = {
       orderId: metadata.order_id || `CP-${transactionId}`,
       platform: 'Beehive',
       paymentMethod: 'pix',
-      status: 'paid',
+      status: mappedStatus,
       createdAt: nowStr,
-      approvedDate: nowStr,
+      approvedDate: isPaid ? nowStr : null,
       refundedAt: null,
       customer: { name: nome, email, phone: telefone, document: documentNum },
       products: [{
@@ -170,7 +165,7 @@ exports.handler = async (event) => {
     };
 
     try {
-      console.log('[Beehive Webhook] Enviando Purchase para UTMify...');
+      console.log(`[Beehive Webhook] Enviando status ${mappedStatus} para UTMify...`);
       const utmRes = await postToUtmify(utmifyPayload, utmifyToken);
       console.log(`[Beehive Webhook] UTMify (${utmRes.status}):`, utmRes.body);
     } catch (utmErr) {
@@ -178,60 +173,62 @@ exports.handler = async (event) => {
     }
 
     // ─────────────────────────────────────────
-    // 4. Disparar Purchase para Meta CAPI
+    // 4. Disparar Purchase para Meta CAPI (apenas se PAID)
     // ─────────────────────────────────────────
-    const hashedData = { country: sha256('br') };
-    if (email) hashedData.em = sha256(email);
-    if (telefone) {
-      const phone = telefone.startsWith('55') ? telefone : '55' + telefone;
-      hashedData.ph = sha256(phone);
+    if (isPaid) {
+      const hashedData = { country: sha256('br') };
+      if (email) hashedData.em = sha256(email);
+      if (telefone) {
+        const phone = telefone.startsWith('55') ? telefone : '55' + telefone;
+        hashedData.ph = sha256(phone);
+      }
+      if (nome) {
+        const parts = nome.trim().split(/\s+/);
+        if (parts[0]) hashedData.fn = sha256(parts[0]);
+        if (parts.slice(1).join(' ')) hashedData.ln = sha256(parts.slice(1).join(' '));
+      }
+
+      const clientIp = (event.headers['x-nf-client-connection-ip'] ||
+                        event.headers['x-forwarded-for'] || '127.0.0.1').split(',')[0].trim();
+
+      const pixelId = process.env.META_PIXEL_ID || '1932684814101405';
+      const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
+      const deduplicationId = `purchase_${transactionId}`;
+
+      const capiEvent = {
+        event_name: 'Purchase',
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: deduplicationId,
+        event_source_url: 'https://cartapetes.netlify.app/obrigado',
+        action_source: 'website',
+        user_data: {
+          client_ip_address: clientIp,
+          client_user_agent: event.headers['user-agent'] || '',
+          ...hashedData,
+          ...(storedUTMs.fbclid && { fbc: `fb.1.${Date.now()}.${storedUTMs.fbclid}` }),
+        },
+        custom_data: {
+          value,
+          currency: 'BRL',
+          content_type: 'product',
+          contents: [{ id: 'kit_tapete', quantity: 1, item_price: value }],
+          order_id: metadata.order_id || transactionId,
+        },
+      };
+
+      console.log(`[Beehive Webhook] Enviando Purchase para Meta CAPI (event_id: ${deduplicationId})`);
+      const metaRes = await fetch(
+        `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [capiEvent] }) }
+      );
+      const metaData = await metaRes.json();
+      console.log('[Beehive Webhook] Meta CAPI response:', metaData);
     }
-    if (nome) {
-      const parts = nome.trim().split(/\s+/);
-      if (parts[0]) hashedData.fn = sha256(parts[0]);
-      if (parts.slice(1).join(' ')) hashedData.ln = sha256(parts.slice(1).join(' '));
-    }
-
-    const clientIp = (event.headers['x-nf-client-connection-ip'] ||
-                      event.headers['x-forwarded-for'] || '127.0.0.1').split(',')[0].trim();
-
-    const pixelId = process.env.META_PIXEL_ID || '1932684814101405';
-    const accessToken = process.env.META_ACCESS_TOKEN || 'EAAK1b7DgzXcBRsShH7RrGo3MHSgc5SMdUvxOmZB7iGKZC8JxKximXkLkSekqKZBiQtbn4dESkKXt87keRLpBjybBbsu3LlrU7hMWD1mzw8iseR69kRnXkkrK1xXZAPpNZBniy0IzQW1SZBn1ZBcWwztRN7KoYYo7UkwmhRCNHqqfbiY8OYTAOJzEQ699TdV4gZDZD';
-    const deduplicationId = `purchase_${transactionId}`;
-
-    const capiEvent = {
-      event_name: 'Purchase',
-      event_time: Math.floor(Date.now() / 1000),
-      event_id: deduplicationId,
-      event_source_url: 'https://cartapetes.netlify.app/obrigado',
-      action_source: 'website',
-      user_data: {
-        client_ip_address: clientIp,
-        client_user_agent: event.headers['user-agent'] || '',
-        ...hashedData,
-        ...(storedUTMs.fbclid && { fbc: `fb.1.${Date.now()}.${storedUTMs.fbclid}` }),
-      },
-      custom_data: {
-        value,
-        currency: 'BRL',
-        content_type: 'product',
-        contents: [{ id: 'kit_tapete', quantity: 1, item_price: value }],
-        order_id: metadata.order_id || transactionId,
-      },
-    };
-
-    console.log(`[Beehive Webhook] Enviando Purchase para Meta CAPI (event_id: ${deduplicationId})`);
-    const metaRes = await fetch(
-      `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [capiEvent] }) }
-    );
-    const metaData = await metaRes.json();
-    console.log('[Beehive Webhook] Meta CAPI response:', metaData);
 
     return {
       statusCode: 200,
       headers: CORS,
-      body: JSON.stringify({ success: true, utmifySent: true, metaSent: true, transactionId }),
+      body: JSON.stringify({ success: true, utmifySent: true, mappedStatus, transactionId }),
     };
 
   } catch (error) {

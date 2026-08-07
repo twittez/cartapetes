@@ -190,8 +190,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose, onBl
     }
     pixPaidConfirmedRef.current = true;
 
-    // Atualiza status no Supabase
-    await updateOrderStatus(transactionId, 'pago');
+    // Atualiza status no Supabase e dispara venda vaga para a UTMify
+    await updateOrderStatus(transactionId, 'pago', { value: finalPrice, formData, vehicle });
 
     // Dispara Purchase no Pixel browser (1x, deduplicado)
     const hashedUD = await getHashedUserData(formData).catch(() => ({}));

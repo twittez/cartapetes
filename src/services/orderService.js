@@ -1,14 +1,12 @@
 /**
  * orderService.js
- * ÚNICA fonte de criação de pedidos no Supabase.
+ * Central de criação e gestão de pedidos.
  *
  * REGRAS:
- * - Apenas este arquivo cria pedidos
- * - Usa transaction_id único gerado aqui
- * - Inclui UTMs capturados da URL
- * - Idempotente: não duplica pedidos com o mesmo transaction_id
- * - NÃO envia nada para UTMify (só o beehive-webhook.js faz isso)
- * - NÃO chama o Render (o Render só lê o Supabase)
+ * - Apenas este arquivo cria/atualiza pedidos no Supabase.
+ * - Inclui UTMs capturados da URL.
+ * - Idempotente: não duplica pedidos com o mesmo transaction_id.
+ * - Dispara eventos de rastreamento para a UTMify (waiting_payment ao gerar PIX, e paid ao confirmar).
  */
 
 import { supabase } from '../utils/supabase';
@@ -22,22 +20,55 @@ export function generateOrderId() {
 }
 
 /**
+ * Envia evento para a Netlify Function utmify-order.
+ * @param {object} params
+ */
+export async function sendUtmifyEvent({ orderId, status, value, formData, vehicle }) {
+  try {
+    const utms = getStoredUTMs();
+    const mappedStatus = (status === 'pago' || status === 'paid') ? 'paid' : 'waiting_payment';
+
+    const payload = {
+      orderId,
+      platform: 'Beehive',
+      paymentMethod: 'pix',
+      status: mappedStatus,
+      value: value || 0,
+      customer: {
+        name: formData?.nome || 'Cliente',
+        email: formData?.email || '',
+        phone: (formData?.telefone || '').replace(/\D/g, ''),
+        document: (formData?.cpf || '').replace(/\D/g, ''),
+      },
+      productName: `Tapete Bandeja Premium - ${vehicle || 'Carro'}`,
+      trackingParameters: {
+        src: utms.src || null,
+        sck: utms.sck || null,
+        utm_source: utms.utm_source || null,
+        utm_medium: utms.utm_medium || null,
+        utm_campaign: utms.utm_campaign || null,
+        utm_content: utms.utm_content || null,
+        utm_term: utms.utm_term || null,
+      },
+    };
+
+    console.log(`[OrderService] Disparando UTMify (${mappedStatus}) para pedido ${orderId}...`);
+    const res = await fetch('/.netlify/functions/utmify-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    console.log(`[OrderService] Resposta UTMify:`, data);
+  } catch (e) {
+    console.warn(`[OrderService] Falha ao enviar para UTMify:`, e.message);
+  }
+}
+
+/**
  * Cria um pedido com status 'pendente' no Supabase.
  * Inclui automaticamente os UTMs capturados da URL.
- *
- * @param {object} params
- * @param {string} params.orderId - ID único do pedido (gerado por generateOrderId)
- * @param {string} params.transactionId - ID da transação da Beehive (data.id)
- * @param {object} params.formData - Dados do formulário do cliente
- * @param {number} params.finalPrice - Valor final calculado
- * @param {string} params.vehicle - Veículo selecionado
- * @param {string} params.kit - Kit selecionado (basico/premium)
- * @param {Array}  params.upsellItems - Itens de upsell
- * @param {boolean} params.perfumeUpsell - Upsell de perfume
- * @param {string} params.paymentMethod - Método de pagamento
- * @param {string} params.trackingCode - Código de rastreio
- * @param {string} [params.clientIp] - IP do cliente (injetado pelo beehive-pix.js)
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Dispara evento 'waiting_payment' para a UTMify.
  */
 export async function createPendingOrder({
   orderId,
@@ -85,23 +116,31 @@ export async function createPendingOrder({
     utm_term: utms.utm_term || null,
     fbclid: utms.fbclid || null,
     gclid: utms.gclid || null,
-    // IP do cliente (para controle de fraude)
+    // IP do cliente
     client_ip: clientIp || null,
   };
 
+  // 1. Envia evento de venda pendente para a UTMify (venda gerada no checkout)
+  sendUtmifyEvent({
+    orderId: effectiveTxId,
+    status: 'waiting_payment',
+    value: finalPrice,
+    formData,
+    vehicle,
+  });
+
+  // 2. Salva no Supabase
   if (!supabase) {
     console.warn('[OrderService] Supabase não configurado — pedido não salvo remotamente.');
     return { success: false, error: 'Supabase não configurado' };
   }
 
   try {
-    // Usa upsert para garantir idempotência: se já existir com esse transaction_id, ignora
     const { error } = await supabase
       .from('leads')
       .upsert([leadData], { onConflict: 'transaction_id', ignoreDuplicates: true });
 
     if (error) {
-      // Fallback: tenta insert simples se upsert falhar (schema sem UNIQUE constraint ainda)
       console.warn('[OrderService] Upsert falhou, tentando insert:', error.message);
       const { error: insertError } = await supabase.from('leads').insert([leadData]);
       if (insertError) {
@@ -123,12 +162,9 @@ export async function createPendingOrder({
 
 /**
  * Atualiza o status de um pedido existente no Supabase.
- * Chamado pelo polling local (quando Beehive webhook não chegar a tempo).
- *
- * @param {string} transactionId
- * @param {string} status - 'pago' | 'negado' | 'pendente'
+ * Dispara evento 'paid' para a UTMify.
  */
-export async function updateOrderStatus(transactionId, status) {
+export async function updateOrderStatus(transactionId, status, extraData = {}) {
   if (!supabase || !transactionId) return { success: false };
 
   try {
@@ -143,6 +179,18 @@ export async function updateOrderStatus(transactionId, status) {
     }
 
     console.log(`[OrderService] ✅ Status do pedido ${transactionId} → ${status}`);
+
+    // Dispara atualização para a UTMify se for pago
+    if (status === 'pago' || status === 'paid') {
+      sendUtmifyEvent({
+        orderId: transactionId,
+        status: 'paid',
+        value: extraData.value || extraData.finalPrice,
+        formData: extraData.formData,
+        vehicle: extraData.vehicle,
+      });
+    }
+
     return { success: true };
   } catch (err) {
     console.error('[OrderService] Exceção ao atualizar:', err);
