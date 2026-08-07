@@ -66,7 +66,8 @@ exports.handler = async (event, context) => {
     const token = process.env.UTMIFY_TOKEN || 'cSOZLc4zjXQY48Nz6Mlk35KQqSXlLOiV53S8';
     const nowStr = new Date().toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace('T', ' ').substring(0, 19);
 
-    const amountInCents = body.amountInCents || Math.round((body.value || 131) * 100);
+    const rawValue = parseFloat(body.value || body.totalPrice || body.final_price || 0);
+    const amountInCents = body.amountInCents ? Math.round(body.amountInCents) : (rawValue > 0 ? Math.round(rawValue * 100) : 0);
     const mappedStatus = mapStatus(body.status);
 
     const utmifyPayload = {

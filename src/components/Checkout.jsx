@@ -127,6 +127,7 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
   const [trackingCode, setTrackingCode] = useState('');
 
   const initiatedRef = useRef(false);
+  const utmifyFiredRef = useRef({});
 
   // Scroll to top and trigger InitiateCheckout on mount
   useEffect(() => {
@@ -152,12 +153,20 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose }) {
 
   const sendUtmifyOrder = async (leadInfo) => {
     try {
+      const orderIdVal = leadInfo.orderId || transactionId || `CP-${Date.now()}`;
+      const dedupeKey = `${orderIdVal}_${leadInfo.status}`;
+      if (utmifyFiredRef.current[dedupeKey]) {
+        console.log(`[UTMify] Evento (${dedupeKey}) já enviado. Ignorando envio duplicado.`);
+        return;
+      }
+      utmifyFiredRef.current[dedupeKey] = true;
+
       const orderStatus = leadInfo.status === 'pago' ? 'paid' : 'waiting_payment';
       await fetch('/.netlify/functions/utmify-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: leadInfo.orderId || `CP-${Date.now()}`,
+          orderId: orderIdVal,
           platform: 'Beehive',
           paymentMethod: 'pix',
           status: orderStatus,
