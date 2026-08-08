@@ -292,7 +292,10 @@ export default function AdminPanel() {
   const filteredLeadsByPeriod = useMemo(() => {
     const now = new Date();
     return leads.filter(item => {
-      const createdAt = new Date(item.created_at);
+      const rawDate = item.created_at || item.timestamp || item.date;
+      const createdAt = rawDate ? new Date(rawDate) : null;
+      if (!createdAt || isNaN(createdAt.getTime())) return true;
+
       if (periodFilter === 'hoje') {
         return createdAt.toDateString() === now.toDateString();
       }
