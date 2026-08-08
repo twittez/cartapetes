@@ -150,18 +150,8 @@ export async function createPendingOrder({
   // 2. Envia notificação ao backend Render
   sendPainelNotification(leadData);
 
-  // 3. Envia evento de venda pendente para a UTMify (com trava de deduplicação)
-  const utmifyDedupKey = `utmify_pending_sent_${effectiveTxId}`;
-  if (typeof window !== 'undefined' && !sessionStorage.getItem(utmifyDedupKey)) {
-    sessionStorage.setItem(utmifyDedupKey, '1');
-    sendUtmifyEvent({
-      orderId: effectiveTxId,
-      status: 'waiting_payment',
-      value: finalPrice,
-      formData,
-      vehicle,
-    });
-  }
+  // 3. O envio de eventos para a UTMify é centralizado exclusivamente no backend (beehive-pix.js e beehive-webhook.js)
+  // para evitar duplicações de conversão.
 
   // 4. Salva no Supabase com UPSERT e trava de idempotência em transaction_id
   if (!supabase) {
@@ -236,16 +226,7 @@ export async function updateOrderStatus(transactionId, status, extraData = {}) {
     }
   }
 
-  // Dispara evento 'paid' para UTMify
-  if (newStatus === 'pago') {
-    sendUtmifyEvent({
-      orderId: transactionId,
-      status: 'paid',
-      value: extraData.value || extraData.finalPrice,
-      formData: extraData.formData,
-      vehicle: extraData.vehicle,
-    });
-  }
+  // O evento 'paid' para a UTMify é disparado 100% no servidor via beehive-webhook.js
 
   return { success: true };
 }

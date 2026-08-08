@@ -473,10 +473,6 @@ export default function App() {
                     localStorage.removeItem('cartapetes_added_upsells');
                     setSelectedVehicle(vehicleInfo);
 
-                    // Dispara InitiateCheckout no momento do clique (1x por sessão)
-                    const kitId = selectedKit === 'basico' ? 'kit_basico' : 'kit_premium';
-                    initiateCheckout(kitId, currentPrice, vehicleInfo);
-
                     // Notifica o tracker sobre o modelo selecionado
                     if (tracker.setVehicle) {
                       tracker.setVehicle(vehicleInfo);

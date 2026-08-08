@@ -264,7 +264,7 @@ export default function AdminPanel() {
         .channel('admin_realtime_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
           if (payload.eventType === 'INSERT') {
-            setLeads(prev => [payload.new, ...prev]);
+            setLeads(prev => prev.some(l => (l.transaction_id && l.transaction_id === payload.new.transaction_id) || (l.id && l.id === payload.new.id)) ? prev : [payload.new, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             setLeads(prev => prev.map(l => l.transaction_id === payload.new.transaction_id || l.id === payload.new.id ? payload.new : l));
           } else if (payload.eventType === 'DELETE') {
