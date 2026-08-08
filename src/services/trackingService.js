@@ -164,35 +164,51 @@ class TrackingService {
   }
 
   async sendPing() {
-    if (!supabase) return;
-
     const utms = captureAndStoreUTMs();
     const origin = getTrafficOrigin();
     const { dispositivo, navegador } = getDeviceAndBrowser();
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const carModel = this.vehicle || (typeof window !== 'undefined' ? localStorage.getItem(VEHICLE_STORE_KEY) : null);
 
-    try {
-      await supabase.from('online_leads').upsert([{
-        session_id: this.sessionId,
-        last_seen: new Date().toISOString(),
-        status_etapa: this.currentStage,
-        modelo_carro: this.vehicle || (typeof window !== 'undefined' ? localStorage.getItem(VEHICLE_STORE_KEY) : null),
-        nome: this.customerData.nome || null,
-        email: this.customerData.email || null,
-        url_atual: currentUrl,
-        dispositivo,
-        navegador,
-        origem_trafego: origin,
-        utm_source: utms.utm_source || null,
-        utm_medium: utms.utm_medium || null,
-        utm_campaign: utms.utm_campaign || null,
-        utm_content: utms.utm_content || null,
-        utm_term: utms.utm_term || null,
-        fbclid: utms.fbclid || null,
-        gclid: utms.gclid || null,
-      }], { onConflict: 'session_id' });
-    } catch (e) {
-      console.warn('[TrackingService] Falha no ping online_leads:', e.message);
+    const payload = {
+      session_id: this.sessionId,
+      last_seen: new Date().toISOString(),
+      status_etapa: this.currentStage,
+      modelo_carro: carModel,
+      nome: this.customerData.nome || null,
+      email: this.customerData.email || null,
+      url_atual: currentUrl,
+      dispositivo,
+      navegador,
+      origem_trafego: origin,
+      utm_source: utms.utm_source || null,
+      utm_medium: utms.utm_medium || null,
+      utm_campaign: utms.utm_campaign || null,
+      utm_content: utms.utm_content || null,
+      utm_term: utms.utm_term || null,
+      fbclid: utms.fbclid || null,
+      gclid: utms.gclid || null,
+    };
+
+    // 1. Envia Ping via HTTP API ao backend Node/Render
+    if (typeof window !== 'undefined') {
+      const endpoints = ['/api/online-leads', 'https://wepink-checkout.onrender.com/api/online-leads'];
+      endpoints.forEach(url => {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      });
+    }
+
+    // 2. Se o Supabase estiver configurado, salva na tabela online_leads
+    if (supabase) {
+      try {
+        await supabase.from('online_leads').upsert([payload], { onConflict: 'session_id' });
+      } catch (e) {
+        console.warn('[TrackingService] Falha no ping Supabase online_leads:', e.message);
+      }
     }
   }
 
