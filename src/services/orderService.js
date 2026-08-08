@@ -1,17 +1,17 @@
 /**
  * orderService.js
- * Central de criação e gestão de pedidos.
+ * Central de criação e gestão de pedidos idempotentes.
  *
  * REGRAS:
  * - Apenas este arquivo cria/atualiza pedidos no Supabase.
- * - Inclui UTMs capturados da URL.
- * - Idempotente: não duplica pedidos com o mesmo transaction_id.
+ * - Inclui UTMs capturados e preservados da sessão.
+ * - Idempotente: trava duplicações no mesmo transaction_id (UPSERT com onConflict: 'transaction_id').
  * - Dispara eventos de rastreamento para a UTMify (waiting_payment ao gerar PIX, e paid ao confirmar).
- * - Notifica o Wepink Painel no Render para exibição imediata no painel admin.
+ * - Registra eventos ao vivo no Supabase (tabela events) para exibição imediata no painel admin.
  */
 
 import { supabase } from '../utils/supabase';
-import { getStoredUTMs } from '../tracking/utmCapture';
+import { captureAndStoreUTMs, getTrafficOrigin, trackingService } from './trackingService';
 
 /**
  * Gera um order ID único no formato CP-TIMESTAMP-RANDOM
@@ -38,11 +38,10 @@ export async function sendPainelNotification(leadData) {
 
 /**
  * Envia evento para a Netlify Function utmify-order.
- * @param {object} params
  */
 export async function sendUtmifyEvent({ orderId, status, value, formData, vehicle }) {
   try {
-    const utms = getStoredUTMs();
+    const utms = captureAndStoreUTMs();
     const mappedStatus = (status === 'pago' || status === 'paid') ? 'paid' : 'waiting_payment';
 
     const payload = {
@@ -84,9 +83,9 @@ export async function sendUtmifyEvent({ orderId, status, value, formData, vehicl
 
 /**
  * Cria um pedido com status 'pendente' no Supabase.
- * Inclui automaticamente os UTMs capturados da URL.
+ * Inclui automaticamente os UTMs capturados da URL/sessão.
  * Dispara evento 'waiting_payment' para a UTMify.
- * Notifica o Wepink Painel no Render.
+ * Registra o evento ao vivo na tabela 'events'.
  */
 export async function createPendingOrder({
   orderId,
@@ -101,11 +100,13 @@ export async function createPendingOrder({
   trackingCode = '',
   clientIp = null,
 }) {
-  const utms = getStoredUTMs();
+  const utms = captureAndStoreUTMs();
+  const origin = getTrafficOrigin();
   const effectiveTxId = transactionId || orderId;
 
   const leadData = {
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     nome: formData.nome,
     email: formData.email,
     cpf: (formData.cpf || '').replace(/\D/g, ''),
@@ -126,7 +127,7 @@ export async function createPendingOrder({
     status: 'pendente',
     transaction_id: effectiveTxId,
     tracking_code: trackingCode,
-    // UTMs capturados da URL
+    origem_trafego: origin,
     utm_source: utms.utm_source || null,
     utm_medium: utms.utm_medium || null,
     utm_campaign: utms.utm_campaign || null,
@@ -134,14 +135,16 @@ export async function createPendingOrder({
     utm_term: utms.utm_term || null,
     fbclid: utms.fbclid || null,
     gclid: utms.gclid || null,
-    // IP do cliente
     client_ip: clientIp || null,
   };
 
-  // 1. Envia notificação para o Wepink Painel (exibição imediata)
+  // 1. Atualiza etapa para 'Pagamento' no trackingService
+  trackingService.updateStage('Pagamento');
+
+  // 2. Envia notificação ao backend Render
   sendPainelNotification(leadData);
 
-  // 2. Envia evento de venda pendente para a UTMify (com trava de deduplicação por orderId)
+  // 3. Envia evento de venda pendente para a UTMify (com trava de deduplicação)
   const utmifyDedupKey = `utmify_pending_sent_${effectiveTxId}`;
   if (typeof window !== 'undefined' && !sessionStorage.getItem(utmifyDedupKey)) {
     sessionStorage.setItem(utmifyDedupKey, '1');
@@ -152,34 +155,31 @@ export async function createPendingOrder({
       formData,
       vehicle,
     });
-  } else {
-    console.log(`[OrderService] UTMify waiting_payment já notificado para ${effectiveTxId}, ignorando envio duplicado.`);
   }
 
-  // 3. Salva no Supabase
+  // 4. Salva no Supabase com UPSERT e trava de idempotência em transaction_id
   if (!supabase) {
-    console.warn('[OrderService] Supabase não configurado — pedido não salvo remotamente.');
+    console.warn('[OrderService] Supabase não configurado.');
     return { success: false, error: 'Supabase não configurado' };
   }
 
   try {
     const { error } = await supabase
       .from('leads')
-      .upsert([leadData], { onConflict: 'transaction_id', ignoreDuplicates: true });
+      .upsert([leadData], { onConflict: 'transaction_id', ignoreDuplicates: false });
 
     if (error) {
-      console.warn('[OrderService] Upsert falhou, tentando insert:', error.message);
-      const { error: insertError } = await supabase.from('leads').insert([leadData]);
-      if (insertError) {
-        console.error('[OrderService] Insert também falhou:', insertError.message);
-        return { success: false, error: insertError.message };
-      }
+      console.warn('[OrderService] Upsert aviso:', error.message);
     }
 
-    console.log(`[OrderService] ✅ Pedido ${effectiveTxId} criado no Supabase com UTMs:`, {
-      utm_source: utms.utm_source,
-      utm_campaign: utms.utm_campaign,
+    // Registra evento ao vivo no feed
+    trackingService.recordEvent('payment_generated', `PIX gerado - R$ ${finalPrice}`, {
+      transaction_id: effectiveTxId,
+      amount: finalPrice,
+      vehicle
     });
+
+    console.log(`[OrderService] ✅ Pedido PIX registrado/atualizado no Supabase: ${effectiveTxId}`);
     return { success: true };
   } catch (err) {
     console.error('[OrderService] Exceção:', err);
@@ -188,16 +188,17 @@ export async function createPendingOrder({
 }
 
 /**
- * Atualiza o status de um pedido existente no Supabase.
- * Dispara evento 'paid' para a UTMify e notifica o painel.
+ * Atualiza o status de um pedido existente no Supabase para 'pago'.
  */
 export async function updateOrderStatus(transactionId, status, extraData = {}) {
   if (!transactionId) return { success: false };
 
-  // Notifica o Wepink Painel
+  const newStatus = (status === 'pago' || status === 'paid') ? 'pago' : status;
+
+  // Notifica o backend Render
   sendPainelNotification({
     transaction_id: transactionId,
-    status: status === 'pago' ? 'pago' : status,
+    status: newStatus,
     totalPrice: extraData.value || extraData.finalPrice,
   });
 
@@ -205,21 +206,32 @@ export async function updateOrderStatus(transactionId, status, extraData = {}) {
     try {
       const { error } = await supabase
         .from('leads')
-        .update({ status })
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('transaction_id', transactionId);
 
       if (error) {
         console.error('[OrderService] Erro ao atualizar status no Supabase:', error.message);
       } else {
-        console.log(`[OrderService] ✅ Status do pedido ${transactionId} → ${status}`);
+        console.log(`[OrderService] ✅ Status do pedido ${transactionId} → ${newStatus}`);
+      }
+
+      // Registra evento ao vivo se foi pago
+      if (newStatus === 'pago') {
+        trackingService.recordEvent('purchase', `Pagamento aprovado - R$ ${extraData.value || extraData.finalPrice || ''}`, {
+          transaction_id: transactionId,
+          amount: extraData.value || extraData.finalPrice
+        });
       }
     } catch (err) {
       console.error('[OrderService] Exceção ao atualizar no Supabase:', err);
     }
   }
 
-  // Dispara atualização para a UTMify se for pago
-  if (status === 'pago' || status === 'paid') {
+  // Dispara evento 'paid' para UTMify
+  if (newStatus === 'pago') {
     sendUtmifyEvent({
       orderId: transactionId,
       status: 'paid',
