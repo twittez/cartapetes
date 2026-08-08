@@ -192,6 +192,23 @@ exports.handler = async (event) => {
           console.warn('[beehive-pix] Erro ao enviar para UTMify:', err.message);
         });
 
+        // Forward to Render Dashboard as backup
+        try {
+          fetch('https://wepink-checkout.onrender.com/api/checkout-pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transaction_id: responseData.id || orderId,
+              clientName: cust.name,
+              clientEmail: cust.email,
+              clientCPF: cust.document?.number,
+              clientPhone: cust.phone,
+              totalPrice: (parsedBody?.amount || 0) / 100,
+              status: 'pendente'
+            })
+          }).catch(() => {});
+        } catch (e) {}
+
         return {
           statusCode: response.status,
           headers,

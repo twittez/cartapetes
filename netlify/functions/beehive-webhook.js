@@ -91,6 +91,14 @@ exports.handler = async (event) => {
           } else {
             console.log(`[Beehive Webhook] ✅ Lead ${transactionId} → PAGO no Supabase`);
           }
+
+          // Registra evento de venda ao vivo
+          await supabase.from('events').insert([{
+            session_id: transactionId,
+            event_type: 'purchase',
+            description: `Pagamento aprovado via Beehive — TX: ${transactionId}`,
+            created_at: new Date().toISOString()
+          }]).then().catch(() => {});
         }
 
         const { data: leadRow } = await supabase
@@ -107,6 +115,19 @@ exports.handler = async (event) => {
         console.error('[Beehive Webhook] Supabase connection error:', dbErr.message);
       }
     }
+
+    // Encaminha notificação para o Render Backend Dashboard
+    try {
+      fetch('https://wepink-checkout.onrender.com/api/beehive-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transaction_id: transactionId,
+          status: isPaid ? 'paid' : mappedStatus,
+          amount: value
+        })
+      }).catch(() => {});
+    } catch (e) {}
 
     // ─────────────────────────────────────────
     // 2. Extrair dados do cliente e valor

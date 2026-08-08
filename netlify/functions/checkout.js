@@ -108,6 +108,17 @@ exports.handler = async (event, context) => {
       } else {
         console.log(`[Netlify Checkout Function] Pedido ${txId} (${status}) salvo no Supabase ✓`);
       }
+    }
+
+    // Encaminha a transação para o Render Dashboard
+    try {
+      fetch('https://wepink-checkout.onrender.com/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leadData)
+      }).catch(() => {});
+    } catch (e) {}
+
     return {
       statusCode: isDeclined ? 400 : 200,
       headers,
