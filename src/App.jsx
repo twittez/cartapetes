@@ -10,6 +10,7 @@ import TrackingPage from './components/TrackingPage';
 import BlockedPage from './components/BlockedPage';
 import { CHECKOUT_URLS } from './data/vehicles';
 import { trackMetaEvent, generateEventId } from './utils/metaPixel';
+import { initiateCheckout, viewContent } from './tracking/facebookPixel';
 import { tracker } from './utils/tracker';
 
 // Recent purchase notifications
@@ -210,16 +211,10 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
 
-  // Rastreia o evento ViewContent no carregamento inicial da Landing Page e busca localização do lead
+  // Rastreia o evento ViewContent no carregamento inicial da Landing Page (deduplicado 1x por sessão)
   useEffect(() => {
     tracker.init('Loja');
-    const eventId = generateEventId();
-    trackMetaEvent('ViewContent', eventId, {
-      content_name: 'Tapete Bandeja Premium Sob Medida + Lixeira de Brinde',
-      content_category: 'Automotivo',
-      value: 87.90,
-      currency: 'BRL'
-    });
+    viewContent('kit_landing', 87.90, 'Tapete Bandeja Premium');
 
     const fetchLocation = async () => {
       try {
@@ -477,6 +472,16 @@ export default function App() {
                     localStorage.removeItem('cartapetes_is_upsell_only');
                     localStorage.removeItem('cartapetes_added_upsells');
                     setSelectedVehicle(vehicleInfo);
+
+                    // Dispara InitiateCheckout no momento do clique (1x por sessão)
+                    const kitId = selectedKit === 'basico' ? 'kit_basico' : 'kit_premium';
+                    initiateCheckout(kitId, currentPrice, vehicleInfo);
+
+                    // Notifica o tracker sobre o modelo selecionado
+                    if (tracker.setVehicle) {
+                      tracker.setVehicle(vehicleInfo);
+                    }
+
                     navigateTo('/checkout');
                   }}
                 />

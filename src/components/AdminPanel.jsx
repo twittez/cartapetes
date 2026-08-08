@@ -6,16 +6,19 @@ export default function AdminPanel() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [leads, setLeads] = useState([]);
+  const [onlineLeads, setOnlineLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos'); // 'Todos', 'pago', 'pendente', 'negado'
+  const [mainTab, setMainTab] = useState('orders'); // 'orders' ou 'online'
   const [stats, setStats] = useState({
     total: 0,
     paid: 0,
     pending: 0,
     declined: 0,
     revenue: 0,
+    onlineNow: 0,
   });
 
   const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
@@ -30,7 +33,6 @@ export default function AdminPanel() {
 
   // Fetch leads from Supabase + Local Storage
   const fetchLeads = async () => {
-    setLoading(true);
     let allLeads = [];
 
     // 1. Local Storage Leads
@@ -62,28 +64,77 @@ export default function AdminPanel() {
     }
 
     setLeads(allLeads);
-    calculateStats(allLeads);
     setLoading(false);
   };
 
+  // Fetch online leads de visitantes nos últimos 5 minutos
+  const fetchOnlineLeads = async () => {
+    if (!supabase) return;
+    try {
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('online_leads')
+        .select('*')
+        .gte('last_seen', fiveMinsAgo)
+        .order('last_seen', { ascending: false });
+
+      if (!error && data) {
+        setOnlineLeads(data);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar online_leads:', e);
+    }
+  };
+
+  // Subscrição Supabase Realtime + Polling contínuo
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchLeads();
+    if (!isAuthenticated) return;
+
+    setLoading(true);
+    fetchLeads();
+    fetchOnlineLeads();
+
+    if (supabase) {
+      const channel = supabase
+        .channel('admin_panel_realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+          console.log('[AdminPanel Realtime] ⚡ Atualização em leads');
+          fetchLeads();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'online_leads' }, () => {
+          console.log('[AdminPanel Realtime] ⚡ Atualização em online_leads');
+          fetchOnlineLeads();
+        })
+        .subscribe();
+
+      const interval = setInterval(() => {
+        fetchOnlineLeads();
+      }, 4000);
+
+      return () => {
+        supabase.removeChannel(channel);
+        clearInterval(interval);
+      };
     }
   }, [isAuthenticated]);
 
-  const calculateStats = (data) => {
-    const paidLeads = data.filter(l => l.status === 'pago');
-    const pendingLeads = data.filter(l => l.status === 'pendente');
-    const declinedLeads = data.filter(l => l.status === 'negado');
+  useEffect(() => {
+    calculateStats(leads, onlineLeads);
+  }, [leads, onlineLeads]);
+
+  const calculateStats = (leadsData, onlineData) => {
+    const paidLeads = leadsData.filter(l => l.status === 'pago');
+    const pendingLeads = leadsData.filter(l => l.status === 'pendente');
+    const declinedLeads = leadsData.filter(l => l.status === 'negado');
     const revenue = paidLeads.reduce((sum, l) => sum + (Number(l.final_price) || 0), 0);
 
     setStats({
-      total: data.length,
+      total: leadsData.length,
       paid: paidLeads.length,
       pending: pendingLeads.length,
       declined: declinedLeads.length,
       revenue: revenue,
+      onlineNow: onlineData ? onlineData.length : 0,
     });
   };
 
@@ -128,7 +179,18 @@ export default function AdminPanel() {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
     });
+  };
+
+  const formatRelativeTime = (dateStr) => {
+    if (!dateStr) return '';
+    const diffSec = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diffSec < 10) return 'Agora mesmo';
+    if (diffSec < 60) return `há ${diffSec} seg`;
+    const mins = Math.floor(diffSec / 60);
+    if (mins < 60) return `há ${mins} min`;
+    return formatDate(dateStr);
   };
 
   const formatPrice = (val) => {
@@ -239,12 +301,18 @@ export default function AdminPanel() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-6">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">CarTapetes Admin</h1>
-            <p className="text-slate-400 text-xs mt-1">Gerenciamento de vendas e leads capturados.</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-black tracking-tight text-white">CarTapetes Admin</h1>
+              <span className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse block" />
+                Realtime Ativo
+              </span>
+            </div>
+            <p className="text-slate-400 text-xs mt-1">Gerenciamento de vendas, leads e acessos em tempo real.</p>
           </div>
           <div className="flex gap-3">
             <button
-              onClick={fetchLeads}
+              onClick={() => { fetchLeads(); fetchOnlineLeads(); }}
               disabled={loading}
               className="bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs px-4 h-10 rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
             >
@@ -260,73 +328,101 @@ export default function AdminPanel() {
         </header>
 
         {/* Stats Grid */}
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <section className="grid grid-cols-2 md:grid-cols-6 gap-4">
           {[
+            { label: 'Online Agora', value: stats.onlineNow, color: 'border-emerald-500/50 bg-emerald-950/20 text-emerald-400 font-black', icon: '🟢' },
             { label: 'Total de Leads', value: stats.total, color: 'border-slate-800 text-white' },
             { label: 'Faturamento', value: formatPrice(stats.revenue), color: 'border-emerald-500/30 text-emerald-400' },
             { label: 'Cartões Negados', value: stats.declined, color: 'border-red-500/30 text-red-400' },
             { label: 'PIX Pagos', value: stats.paid, color: 'border-cyan-500/30 text-cyan-400' },
             { label: 'PIX Pendentes', value: stats.pending, color: 'border-amber-500/30 text-amber-400' },
           ].map((stat, i) => (
-            <div key={i} className={`bg-slate-900 border rounded-2xl p-5 shadow-sm space-y-1 ${stat.color}`}>
-              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{stat.label}</div>
+            <div key={i} className={`bg-slate-900 border rounded-2xl p-4 shadow-sm space-y-1 ${stat.color}`}>
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between">
+                <span>{stat.label}</span>
+                {stat.icon && <span>{stat.icon}</span>}
+              </div>
               <div className="text-xl sm:text-2xl font-black">{stat.value}</div>
             </div>
           ))}
         </section>
 
-        {/* Filters and Search */}
-        <section className="bg-slate-900 border border-slate-850 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
-          <div className="flex bg-slate-950 p-1 rounded-xl w-full md:w-auto">
-            {[
-              { id: 'Todos', label: 'Todos' },
-              { id: 'pago', label: 'Pagos' },
-              { id: 'pendente', label: 'Pendentes' },
-              { id: 'negado', label: 'Cartão Negado' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                className={`flex-1 md:flex-initial text-xs font-semibold px-4 py-2 rounded-lg transition cursor-pointer ${statusFilter === tab.id ? 'bg-[#FF5A00] text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        {/* Tab Switcher: Pedidos vs Visitantes Online */}
+        <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800 w-full sm:w-auto self-start gap-2">
+          <button
+            onClick={() => setMainTab('orders')}
+            className={`flex-1 sm:flex-initial text-xs font-bold px-6 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 ${
+              mainTab === 'orders' ? 'bg-[#FF5A00] text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>📦 Pedidos & Vendas ({leads.length})</span>
+          </button>
+          <button
+            onClick={() => setMainTab('online')}
+            className={`flex-1 sm:flex-initial text-xs font-bold px-6 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 ${
+              mainTab === 'online' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>⚡ Visitantes Online em Tempo Real ({onlineLeads.length})</span>
+          </button>
+        </div>
 
-          <div className="w-full md:w-80">
-            <input
-              type="text"
-              placeholder="Buscar por Nome, CPF ou Telefone"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl h-10 px-4 text-xs outline-none text-white focus:ring-1 focus:ring-[#FF5A00] focus:border-[#FF5A00]"
-            />
-          </div>
-        </section>
+        {/* Conteúdo Aba 1: Pedidos & Vendas */}
+        {mainTab === 'orders' && (
+          <>
+            {/* Filters and Search */}
+            <section className="bg-slate-900 border border-slate-850 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+              <div className="flex bg-slate-950 p-1 rounded-xl w-full md:w-auto">
+                {[
+                  { id: 'Todos', label: 'Todos' },
+                  { id: 'pago', label: 'Pagos' },
+                  { id: 'pendente', label: 'Pendentes' },
+                  { id: 'negado', label: 'Cartão Negado' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setStatusFilter(tab.id)}
+                    className={`flex-1 md:flex-initial text-xs font-semibold px-4 py-2 rounded-lg transition cursor-pointer ${statusFilter === tab.id ? 'bg-[#FF5A00] text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-        {/* Leads Table */}
-        <section className="bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-950 border-b border-slate-850 text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="p-4">Data / Hora</th>
-                  <th className="p-4">Cliente</th>
-                  <th className="p-4">Contato</th>
-                  <th className="p-4">Produto / Veículo</th>
-                  <th className="p-4">Total</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-850">
-                {loading ? (
-                  <tr>
-                    <td colSpan="7" className="p-8 text-center text-slate-500 font-medium">Carregando leads...</td>
-                  </tr>
-                ) : filteredLeads.length === 0 ? (
-                  <tr>
+              <div className="w-full md:w-80">
+                <input
+                  type="text"
+                  placeholder="Buscar por Nome, CPF ou Telefone"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl h-10 px-4 text-xs outline-none text-white focus:ring-1 focus:ring-[#FF5A00] focus:border-[#FF5A00]"
+                />
+              </div>
+            </section>
+
+            {/* Leads Table */}
+            <section className="bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-950 border-b border-slate-850 text-slate-400 font-bold uppercase tracking-wider">
+                      <th className="p-4">Data / Hora</th>
+                      <th className="p-4">Cliente</th>
+                      <th className="p-4">Contato</th>
+                      <th className="p-4">Produto / Veículo</th>
+                      <th className="p-4">Total</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="7" className="p-8 text-center text-slate-500 font-medium">Carregando pedidos...</td>
+                      </tr>
+                    ) : filteredLeads.length === 0 ? (
+                      <tr>
                     <td colSpan="7" className="p-8 text-center text-slate-500 font-medium">Nenhum lead encontrado.</td>
                   </tr>
                 ) : (
@@ -374,6 +470,104 @@ export default function AdminPanel() {
             </table>
           </div>
         </section>
+        </>
+        )}
+
+        {/* Conteúdo Aba 2: Visitantes Online em Tempo Real */}
+        {mainTab === 'online' && (
+          <section className="bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden shadow-sm space-y-4 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Visitantes Navegando Agora
+                </h2>
+                <p className="text-slate-400 text-xs mt-0.5">Leads ativos no site nos últimos 5 minutos (atualizado via Supabase Realtime).</p>
+              </div>
+              <span className="bg-slate-800 text-slate-300 font-mono text-xs px-3 py-1 rounded-lg border border-slate-700">
+                {onlineLeads.length} {onlineLeads.length === 1 ? 'usuário online' : 'usuários online'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-850 text-slate-400 font-bold uppercase tracking-wider">
+                    <th className="p-4">Última Atividade</th>
+                    <th className="p-4">Etapa do Funil</th>
+                    <th className="p-4">Carro Selecionado</th>
+                    <th className="p-4">Cliente / Lead</th>
+                    <th className="p-4">Localização / IP</th>
+                    <th className="p-4">Origem / UTM</th>
+                    <th className="p-4">Dispositivo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-850">
+                  {onlineLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="p-8 text-center text-slate-500 font-medium">Nenhum visitante ativo no momento.</td>
+                    </tr>
+                  ) : (
+                    onlineLeads.map((item) => (
+                      <tr key={item.session_id || item.id} className="hover:bg-slate-850/50 transition">
+                        <td className="p-4 font-mono text-slate-300">
+                          <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            {formatRelativeTime(item.last_seen)}
+                          </div>
+                          <div className="text-[10px] text-slate-500">{formatDate(item.last_seen)}</div>
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+                            item.status_etapa === 'Checkout' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                            item.status_etapa === 'Obrigado' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                            'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                          }`}>
+                            {item.status_etapa || 'Loja'}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-white">
+                          {item.modelo_carro ? (
+                            <span className="text-amber-300 bg-amber-950/30 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                              🚘 {item.modelo_carro}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 font-normal italic">Não selecionado</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {item.nome ? (
+                            <div>
+                              <div className="font-bold text-white">{item.nome}</div>
+                              <div className="text-slate-400 text-[10px]">{item.email}</div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 italic">Visitante Anônimo</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="font-semibold text-slate-200">{item.cidade || 'São Paulo'} - {item.estado || 'SP'}</div>
+                          <div className="text-slate-500 font-mono text-[10px]">{item.ip || '---'}</div>
+                        </td>
+                        <td className="p-4 space-y-0.5">
+                          <div className="font-semibold text-slate-300">{item.origem_trafego || 'Direto'}</div>
+                          {item.utm_source && (
+                            <div className="text-[10px] font-mono text-[#FF5A00]">
+                              utm_source={item.utm_source}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 font-mono text-slate-400">
+                          {item.dispositivo || 'Desktop'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Details Modal */}

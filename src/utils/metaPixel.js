@@ -84,6 +84,14 @@ export async function getHashedUserData(formData) {
  * @param {object} hashedUserData - Dados do cliente em SHA-256
  */
 export async function trackMetaEvent(eventName, eventId, customData = {}, hashedUserData = {}) {
+  // Deduplicação básica via sessionStorage para chamadas vindas de componentes Legados
+  const dedupKey = `meta_evt_${eventName}_${eventId || 'default'}`;
+  if (sessionStorage.getItem(dedupKey)) {
+    console.log(`[Meta Pixel] Evento ${eventName} (${eventId}) já disparado nesta sessão, ignorando.`);
+    return;
+  }
+  sessionStorage.setItem(dedupKey, '1');
+
   const fbp = getCookie('_fbp');
   const fbc = getCookie('_fbc');
   
@@ -95,25 +103,24 @@ export async function trackMetaEvent(eventName, eventId, customData = {}, hashed
   };
 
   // 1. Dispara o evento no Navegador (Meta Pixel)
-  if (window.fbq) {
+  if (typeof window !== 'undefined' && window.fbq) {
     console.log(`[Meta Pixel] Enviando evento: ${eventName}`, { customData, eventId });
     window.fbq('track', eventName, customData, { eventID: eventId });
   } else {
     console.warn('[Meta Pixel] SDK do Pixel não encontrado no navegador.');
   }
 
-  // 2. Dispara o evento via Servidor (Conversions API - CAPI)
+  // 2. Dispara o evento via Servidor (Conversions API - CAPI via Netlify Function)
   const capiPayload = {
     event_name: eventName,
     event_id: eventId,
-    event_source_url: window.location.href,
+    event_source_url: typeof window !== 'undefined' ? window.location.href : '',
     user_data: mergedUserData,
     custom_data: customData
   };
 
   try {
-    console.log(`[Meta CAPI Proxy] Enviando evento via proxy: ${eventName}`);
-    const response = await fetch('/meta-capi', {
+    const response = await fetch('/.netlify/functions/meta-capi', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -121,53 +128,12 @@ export async function trackMetaEvent(eventName, eventId, customData = {}, hashed
       body: JSON.stringify(capiPayload)
     });
 
-    if (!response.ok) {
-      throw new Error(`Proxy respondeu com status ${response.status}`);
+    if (response.ok) {
+      const resData = await response.json();
+      console.log('[Meta CAPI Proxy] Sucesso:', resData);
     }
-    
-    const resData = await response.json();
-    console.log('[Meta CAPI Proxy] Sucesso:', resData);
   } catch (err) {
-    console.warn('[Meta CAPI Proxy] Falha ao enviar via proxy. Tentando envio direto como fallback...', err);
-    
-    // Fallback: Dispara chamada direta ao Graph API do Meta (caso não use Netlify ou dê erro de proxy)
-    await sendCapiDirectFallback(capiPayload);
+    console.warn('[Meta CAPI Proxy] Falha ao enviar evento via CAPI proxy:', err.message);
   }
 }
 
-// Fallback direto do lado do cliente para a API do Meta
-async function sendCapiDirectFallback(payload) {
-  const pixelId = '1932684814101405';
-  const token = 'EAAK1b7DgzXcBSDEWS7pZAqsh9JFU9rZAT1zb8g99ZBPZAMAFNFNqTMFhXpfuT9kZA42e6YZBNSAx8mKmqFCFQkwNLujTAsM83xbKdbss4CM6miDNCdqXnb5gs1zanzZAlsVKUUzCDeH0kx4W9kaEGZCaQVGI2m2484ak0j7sKyZCkmJY0gpLNzJ17FTZC1Psu6VwZDZD';
-  const url = `https://graph.facebook.com/v20.0/${pixelId}/events?access_token=${token}`;
-
-  try {
-    const directPayload = {
-      data: [{
-        event_name: payload.event_name,
-        event_time: Math.floor(Date.now() / 1000),
-        event_id: payload.event_id,
-        event_source_url: payload.event_source_url,
-        action_source: 'website',
-        user_data: {
-          client_user_agent: navigator.userAgent,
-          ...payload.user_data
-        },
-        custom_data: payload.custom_data
-      }]
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(directPayload)
-    });
-
-    const data = await response.json();
-    console.log('[Meta CAPI Direct Fallback] Resposta:', data);
-  } catch (error) {
-    console.error('[Meta CAPI Direct Fallback] Erro ao enviar chamada direta:', error);
-  }
-}

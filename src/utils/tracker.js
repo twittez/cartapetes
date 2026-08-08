@@ -87,7 +87,13 @@ let lastMousePos = { x: 0, y: 0 };
 let trackStartTime = Date.now();
 
 // Dispara ping para o servidor backend e para o Supabase
+let cachedVehicle = (typeof window !== 'undefined' && localStorage.getItem('cartapetes_selected_vehicle')) || null;
+
 async function sendPing(stage = 'Loja', extra = {}) {
+  const utms = getUTMData();
+  const origin = getTrafficOrigin();
+  const activeVehicle = cachedVehicle || (typeof window !== 'undefined' ? localStorage.getItem('cartapetes_selected_vehicle') : null);
+
   const payload = {
     session_id: sessionId,
     ip: cachedGeo.ip || null,
@@ -98,6 +104,10 @@ async function sendPing(stage = 'Loja', extra = {}) {
     url_atual: window.location.href,
     nome: cachedLead.nome || null,
     email: cachedLead.email || null,
+    modelo_carro: activeVehicle || null,
+    origem_trafego: origin || 'Direto',
+    utm_source: utms.source || null,
+    utm_campaign: utms.campaign || null,
     ...extra
   };
 
@@ -131,6 +141,10 @@ async function sendPing(stage = 'Loja', extra = {}) {
         status_etapa: payload.status_etapa,
         dispositivo: payload.dispositivo,
         url_atual: payload.url_atual,
+        modelo_carro: payload.modelo_carro,
+        origem_trafego: payload.origem_trafego,
+        utm_source: payload.utm_source,
+        utm_campaign: payload.utm_campaign,
         last_seen: new Date().toISOString()
       }], { onConflict: 'session_id' }).then();
     } catch (e) {}
@@ -185,6 +199,14 @@ export const tracker = {
   updateLeadInfo(nome, email) {
     cachedLead.nome = nome || cachedLead.nome;
     cachedLead.email = email || cachedLead.email;
+    sendPing(currentStage);
+  },
+
+  setVehicle(vehicleName) {
+    cachedVehicle = vehicleName;
+    if (typeof window !== 'undefined' && vehicleName) {
+      localStorage.setItem('cartapetes_selected_vehicle', vehicleName);
+    }
     sendPing(currentStage);
   },
 

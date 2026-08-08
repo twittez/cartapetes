@@ -151,9 +151,15 @@ export function initiateCheckout(kitId, price, vehicleName = '') {
  * @param {object} hashedUserData - Dados do cliente hasheados em SHA-256
  */
 export function purchase(orderId, value, hashedUserData = {}) {
-  // Usa o eventId do InitiateCheckout para deduplicação consistente
-  const eventId = sessionStorage.getItem('fb_purchase_event_id') ||
-                  makeEventId('purchase');
+  const dedupKey = `${DEDUP_KEYS.Purchase}_${orderId || 'default'}`;
+  if (sessionStorage.getItem(dedupKey)) {
+    console.log(`[FB Pixel] Purchase já disparado para pedido ${orderId}, ignorando.`);
+    return null;
+  }
+  sessionStorage.setItem(dedupKey, '1');
+
+  // Usa o eventId do InitiateCheckout se disponível ou gera novo
+  const eventId = sessionStorage.getItem('fb_purchase_event_id') || makeEventId('purchase');
   sessionStorage.setItem('fb_purchase_event_id', eventId);
 
   const customData = {
@@ -167,6 +173,7 @@ export function purchase(orderId, value, hashedUserData = {}) {
   firePixel('Purchase', customData, eventId);
   fireCAPI('Purchase', customData, eventId, hashedUserData);
 
-  console.log(`[FB Pixel] Purchase registrado — orderId: ${orderId}, valor: R$ ${value}`);
+  console.log(`[FB Pixel] ✅ Purchase registrado — orderId: ${orderId}, valor: R$ ${value}`);
   return eventId;
 }
+

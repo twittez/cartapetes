@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { generateEventId, trackMetaEvent, getHashedUserData } from '../utils/metaPixel';
+import { generateEventId, getHashedUserData } from '../utils/metaPixel';
+import { purchase as fbPurchase } from '../tracking/facebookPixel';
 
 export default function ThankYouUpsellPage() {
   const [purchaseData, setPurchaseData] = useState(null);
@@ -28,23 +29,14 @@ export default function ThankYouUpsellPage() {
         const data = JSON.parse(dataStr);
         setPurchaseData(data);
 
-        if (!window.purchaseEventTracked) {
+        const orderId = data.transaction_id || data.orderId || `ORD-${data.timestamp || Date.now()}`;
+        const dedupKey = `fb_purchase_fired_${orderId}`;
+
+        if (!sessionStorage.getItem(dedupKey)) {
+          sessionStorage.setItem(dedupKey, '1');
           window.purchaseEventTracked = true;
-          const eventId = data.eventId || generateEventId();
+
           const purchaseValue = data.value || 137.90;
-          const kitId = data.kit || 'kit_premium';
-
-          const customData = {
-            value: purchaseValue,
-            currency: 'BRL',
-            content_type: 'product',
-            content_ids: [kitId],
-            contents: [{ id: kitId, quantity: 1, item_price: purchaseValue }],
-            num_items: 1,
-            order_id: `ORD-${Date.now()}`,
-          };
-
-          // Dispara via Pixel (browser) + CAPI (servidor) com dados hasheados do usuário
           getHashedUserData({
             email: data.email,
             telefone: data.telefone,
@@ -53,7 +45,7 @@ export default function ThankYouUpsellPage() {
             estado: data.estado,
             cep: data.cep,
           }).then(hashedUserData => {
-            trackMetaEvent('Purchase', eventId, customData, hashedUserData);
+            fbPurchase(orderId, purchaseValue, hashedUserData);
           });
         }
       }

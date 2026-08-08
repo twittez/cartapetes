@@ -165,9 +165,13 @@ exports.handler = async (event) => {
     };
 
     try {
-      console.log(`[Beehive Webhook] Enviando status ${mappedStatus} para UTMify...`);
-      const utmRes = await postToUtmify(utmifyPayload, utmifyToken);
-      console.log(`[Beehive Webhook] UTMify (${utmRes.status}):`, utmRes.body);
+      if (isPaid) {
+        console.log(`[Beehive Webhook] Enviando status PAID para UTMify...`);
+        const utmRes = await postToUtmify(utmifyPayload, utmifyToken);
+        console.log(`[Beehive Webhook] UTMify (${utmRes.status}):`, utmRes.body);
+      } else {
+        console.log(`[Beehive Webhook] Status PENDING recebido — waiting_payment já foi registrado na geração do PIX pelo servidor. Ignorando envio duplicado.`);
+      }
     } catch (utmErr) {
       console.error('[Beehive Webhook] Erro ao enviar para UTMify:', utmErr.message);
     }

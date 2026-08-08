@@ -141,14 +141,20 @@ export async function createPendingOrder({
   // 1. Envia notificação para o Wepink Painel (exibição imediata)
   sendPainelNotification(leadData);
 
-  // 2. Envia evento de venda pendente para a UTMify (venda gerada no checkout)
-  sendUtmifyEvent({
-    orderId: effectiveTxId,
-    status: 'waiting_payment',
-    value: finalPrice,
-    formData,
-    vehicle,
-  });
+  // 2. Envia evento de venda pendente para a UTMify (com trava de deduplicação por orderId)
+  const utmifyDedupKey = `utmify_pending_sent_${effectiveTxId}`;
+  if (typeof window !== 'undefined' && !sessionStorage.getItem(utmifyDedupKey)) {
+    sessionStorage.setItem(utmifyDedupKey, '1');
+    sendUtmifyEvent({
+      orderId: effectiveTxId,
+      status: 'waiting_payment',
+      value: finalPrice,
+      formData,
+      vehicle,
+    });
+  } else {
+    console.log(`[OrderService] UTMify waiting_payment já notificado para ${effectiveTxId}, ignorando envio duplicado.`);
+  }
 
   // 3. Salva no Supabase
   if (!supabase) {
